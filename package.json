@@ -1,0 +1,32 @@
+{
+  "name": "server_codes",
+  "version": "1.0.0",
+  "description": "Server for an app that records attendance",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/suman1406/quick_attendance_server_code.git"
+  },
+  "keywords": [
+    "nodejs",
+    "backend"
+  ],
+  "author": "Suman Panigrahi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/suman1406/quick_attendance_server_code/issues"
+  },
+  "homepage": "https://github.com/suman1406/quick_attendance_server_code#readme",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "fs": "^0.0.1-security",
+    "mysql2": "^3.6.3",
+    "paseto": "^3.1.4",
+    "validator": "^13.11.0"
+  }
+}
