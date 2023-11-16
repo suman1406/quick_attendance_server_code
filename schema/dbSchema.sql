@@ -12,6 +12,14 @@ CREATE TABLE USERDATA (
     userRole CHAR(1) NOT NULL,
     isActive CHAR(1) NOT NULL DEFAULT '1'
 );
+-- This will act like a temporary table. Once the student verifies their email, the data will be moved to studentData table.
+CREATE TABLE USERREGISTER (
+    id INT NOT NULL AUTO_INCREMENT,
+    email VARCHAR(255) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    createdAt TIMESTAMP NOT NULL,
+    PRIMARY KEY (id)
+);
 -- Table 2: Students Table
 -- isActive: 1 -> Active, 0 -> Deactivated.
 -- Section: A, B, C, D, E, F
@@ -55,7 +63,6 @@ CREATE TABLE attendance (
     FOREIGN KEY (StdID) REFERENCES studentData(StdID),
     FOREIGN KEY (slotID) REFERENCES Slots(slotID)
 );
-
 /*
  1. Login
  

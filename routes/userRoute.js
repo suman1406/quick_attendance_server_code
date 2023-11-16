@@ -1,31 +1,44 @@
 const express = require('express')
 const router = express.Router();
-const userWebController = require('../controller/userWebController');
+const userWebController = require('../controller/userController');
 
+// Test route
 router.get('/test', userWebController.test);
 
+// User authentication routes
 router.post('/login', userWebController.userLogin);
 router.post('/loginVerify', userWebController.loginVerify);
 
-router.post('/registerOfficial', userWebController.registerOfficial);
-router.post('/addStudent', userWebController.addStudent);
-router.get('/getRegisteredOfficials', userWebController.getRegisteredOfficials);
-router.post('/toggleOfficialStatus', userWebController.toggleOfficialAccountStatus);
+// Admin routes
+router.post('/admin', userWebController.addAdmin);
+router.put('/admin/:id', userWebController.editAdmin);
+router.delete('/admin/:id', userWebController.deleteAdmin);
 
-router.post('/forgotPassword', userWebController.forgotPassword);
-router.post('/resetPasswordVerify', userWebController.resetPasswordVerify);
-router.post('/resetPassword', userWebController.resetPassword);
+// Faculty routes
+router.post('/faculty', userWebController.addFaculty);
+router.put('/faculty/:id', userWebController.editFaculty);
+router.delete('/faculty/:id', userWebController.deleteFaculty);
+router.get('/faculty/all', userWebController.allFaculty);
 
-router.post('/addCompany', userWebController.addCompany);
-router.get('/getCompanies', userWebController.getCompanies);
-router.post('/addPlacementData', userWebController.addPlacementData);
+// Password reset routes
+router.post('/forgot-password', userWebController.forgotPassword);
+router.post('/reset-password', userWebController.resetPassword);
+router.post('/reset-verify', userWebController.resetVerify);
 
-router.get('/getCompanyHireData', userWebController.getCompanyHireData);
-router.post('/getCompanyHireDataByBatch', userWebController.getCompanyHireDatabyBatch);
-router.post('/getCompanyHireDataById', userWebController.getCompanyHireDataById);
+// Student routes
+router.post('/student', userWebController.addStudent);
+router.put('/student/:id', userWebController.editStudent);
+router.delete('/student/:id', userWebController.deleteStudent);
+router.get('/students', userWebController.allStudents);
+router.post('/students', userWebController.addStudents);
 
-router.post('/getAllStudentData', userWebController.getAllStudentData);
-router.get('/getTopFivePlacements', userWebController.getTop5Placements);
-router.post('/getAllPlacedStudentData', userWebController.getAllPlacedStudentsData);
+// Class routes
+router.post('/class', userWebController.createClass);
+router.get('/my-classes/:id', userWebController.myClasses);
+router.delete('/class/:id', userWebController.deleteClass);
+
+// Slot routes
+router.post('/slots', userWebController.createSlots);
+router.delete('/slot/:id', userWebController.deleteSlot);
 
 module.exports = router;

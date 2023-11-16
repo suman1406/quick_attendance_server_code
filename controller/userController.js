@@ -2,22 +2,24 @@ const { db } = require('../connection')
 
 const webTokenGenerator = require('../middleware/webTokenGenerator');
 const webTokenValidator = require('../middleware/webTokenValidator');
-// const otpTokenGenerator = require('../middleware/otpTokenGenerator');
-// const [otpTokenValidator, resetPasswordValidator] = require('../middleware/otpTokenValidator');
+const otpTokenGenerator = require('../middleware/otpTokenGenerator');
+const [otpTokenValidator, resetPasswordValidator] = require('../middleware/otpTokenValidator');
 
-// const generateOTP = require("../middleware/otpGenerator");
-// const passwordGenerator = require('secure-random-password');
+const generateOTP = require("../middleware/otpGenerator");
+const passwordGenerator = require('secure-random-password');
 
 const crypto = require('crypto');
 
-// const mailer = require('../mail/mailer');
+const mailer = require('../mail/mailer');
 
 const fs = require('fs');
 const validator = require('validator');
+const tokenValidator = require('../middleware/webTokenValidator');
 
 module.exports = {
 
     test: async (req, res) => {
+        console.log("recieved req")
         return res.status(200).send({ "message": 'Ok' });
     },
 
@@ -205,7 +207,7 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only administrators can access faculty members.' });
             }
 
-            const [rows] = await db.promise().execute('SELECT * FROM USERDATA WHERE isActive = ? AND userRole = ?', [1, 0]); // 1 is for Active and 0 for professor
+            const [rows] = await db.promise().execute('SELECT * FROM USERDATA WHERE isActive = ? AND userRole = ?', [1, 0]);
 
             res.json(rows);
         } catch (error) {
@@ -234,6 +236,8 @@ module.exports = {
 
             let [professor] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ?', [req.body.email]);
 
+            console.log(professor);
+
             if (professor.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
                 return res.status(400).send({ "message": "User does not exist." });
@@ -245,7 +249,9 @@ module.exports = {
                     return res.status(401).send({ "message": "Your account has been deactivated." });
                 }
 
-                const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.body.password), Buffer.from(professor[0].password, 'hex'));
+                // const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.body.password), Buffer.from(professor[0].password, 'hex'));
+
+                const passwordMatch = (req.body.password === professor[0].password);
 
                 if (passwordMatch) {
                     const secret_token = await webTokenGenerator({
@@ -256,7 +262,7 @@ module.exports = {
                     await db_connection.query('UNLOCK TABLES');
 
                     return res.status(200).send({
-                        "message": "Professor logged in!",
+                        "message": "User logged in!",
                         "SECRET_TOKEN": secret_token,
                         "profName": professor[0].profName,
                         "email": professor[0].email,
@@ -284,29 +290,41 @@ module.exports = {
     },
 
     loginVerify: [
+        otpTokenValidator,
         async (req, res) => {
-
             let db_connection = await db.promise().getConnection();
 
             try {
+                // Check if the user exists
                 let [user] = await db_connection.query('SELECT * from USERDATA WHERE email = ?', [req.email]);
 
                 if (user.length === 0) {
                     return res.status(401).send({ "message": "User doesn't exist!" });
                 }
 
+                // Check if the user's account is deactivated
                 if (user[0].isActive === '0') {
                     return res.status(401).send({ "message": "User's account is deactivated!" });
                 }
 
+                // Check if the OTP is valid
+                let [checkOTP] = await db_connection.query(`DELETE from otpTable WHERE email = ? AND otp = ?`, [req.email, req.body.otp]);
+
+                if (checkOTP.affectedRows === 0) {
+                    return res.status(400).send({ "message": "Invalid OTP!" });
+                }
+
+                // Check if the password provided matches the stored password
                 const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.password), Buffer.from(user[0].password, 'hex'));
 
                 if (passwordMatch) {
+                    // Generate and send the authentication token
                     const secret_token = await webTokenGenerator({
                         "userEmail": req.email,
                         "userRole": user[0].userRole,
                     });
 
+                    // Return user information based on the role
                     if (user[0].userRole === '0') {
                         return res.status(200).send({
                             "message": "Professor logged in!",
@@ -342,29 +360,213 @@ module.exports = {
         },
     ],
 
-    resetPassword: async (req, res) => {
+    forgotPassword: async (req, res) => {
+        /*
+        JSON
+        {
+            "userEmail": "<email_id>"
+        }
+        */
+        if (
+            req.body.userEmail === null ||
+            req.body.userEmail === undefined ||
+            req.body.userEmail === "" ||
+            !validator.isEmail(req.body.userEmail)
+        ) {
+            return res.status(400).send({ message: "Missing details." });
+        }
+
+        let db_connection = await db.promise().getConnection();
+
         try {
-            const currentUserRole = req.userRole;
-            const stdID = req.params.id;
-            const newPassword = req.body.newPassword;
+            await db_connection.query(`LOCK TABLES USERDATA READ`);
+            let [professor] = await db_connection.query(
+                `SELECT profName, isActive FROM USERDATA WHERE email = ?`,
+                [req.body.userEmail]
+            );
 
-            if (currentUserRole !== 1) {
-                return res.status(403).json({ error: 'Permission denied. Only admins can reset passwords.' });
+            if (professor.length === 0) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(401).send({ message: "Professor doesn't exist!" });
             }
 
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hashedPassword = crypto.pbkdf2Sync(newPassword, salt, 10000, 64, 'sha512').toString('hex');
+            if (professor[0].isActive === "0") {
+                return res.status(401).send({
+                    message: "Your Account has been deactivated. Check your email for further instructions.",
+                });
+            }
 
-            const [result] = await db.promise().execute('UPDATE studentData SET password = ? WHERE profID = ?', [hashedPassword, stdID]);
+            await db_connection.query(`LOCK TABLES USERREGISTER WRITE`);
+            let name = professor[0]["profName"];
+            let [professor_2] = await db_connection.query(
+                `SELECT * from USERREGISTER WHERE email = ?`,
+                [req.body.userEmail]
+            );
 
-            if (result.affectedRows === 1) {
-                res.json({ message: 'Student password reset successfully' });
+            const otp = generateOTP();
+
+            if (professor_2.length === 0) {
+                await db_connection.query(
+                    `INSERT INTO USERREGISTER (email, otp, createdAt) VALUES (?, ?, ?)`,
+                    [req.body.userEmail, otp, new Date()]
+                );
             } else {
-                res.status(404).json({ error: 'Student not found' });
+                await db_connection.query(
+                    `UPDATE USERREGISTER SET otp = ?, createdAt = ? WHERE email = ?`,
+                    [otp, new Date(), req.body.userEmail]
+                );
             }
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: 'Failed to reset student password' });
+            await db_connection.query(`UNLOCK TABLES`);
+
+            const secret_token = await otpTokenGenerator({
+                userEmail: req.body.userEmail,
+                userRole: userRole,
+            });
+
+            mailer.reset_PW_OTP(profName, otp, req.body.userEmail);
+
+            return res.status(200).send({
+                message: "OTP sent to email.",
+                SECRET_TOKEN: secret_token,
+                userEmail: req.body.userEmail,
+            });
+        } catch (err) {
+            console.log(err);
+            const time = new Date();
+            fs.appendFileSync(
+                "logs/errorLogs.txt",
+                `${time.toISOString()} - forgotPassword - ${err}\n`
+            );
+            return res.status(500).send({ message: "Internal Server Error." });
+        } finally {
+            await db_connection.query(`UNLOCK TABLES`);
+            db_connection.release();
+        }
+    },
+
+    resetPassword: async (req, res) => {
+        /*
+        JSON
+        {
+            "userEmail": "<email_id>",
+            "newPassword": "<new_password>"
+        }
+        */
+        if (
+            req.body.userEmail === null ||
+            req.body.userEmail === undefined ||
+            req.body.userEmail === "" ||
+            !validator.isEmail(req.body.userEmail) ||
+            req.body.newPassword === null ||
+            req.body.newPassword === undefined ||
+            req.body.newPassword === ""
+        ) {
+            return res.status(400).send({ message: "Missing details." });
+        }
+
+        let db_connection = await db.promise().getConnection();
+
+        try {
+            await db_connection.query(`LOCK TABLES USERDATA WRITE`);
+            let [professor] = await db_connection.query(
+                `SELECT profName, isActive FROM USERDATA WHERE email = ?`,
+                [req.body.userEmail]
+            );
+
+            if (professor.length === 0) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(401).send({ message: "Professor doesn't exist!" });
+            }
+
+            if (professor[0].isActive === "0") {
+                return res.status(401).send({
+                    message: "Your Account has been deactivated. Check your email for further instructions.",
+                });
+            }
+
+            await db_connection.query(
+                `UPDATE USERDATA SET password = ? WHERE email = ?`,
+                [req.body.newPassword, req.body.userEmail]
+            );
+            await db_connection.query(`UNLOCK TABLES`);
+
+            return res.status(200).send({ message: "Password reset successful." });
+        } catch (err) {
+            console.log(err);
+            const time = new Date();
+            fs.appendFileSync(
+                "logs/errorLogs.txt",
+                `${time.toISOString()} - resetPassword - ${err}\n`
+            );
+            return res.status(500).send({ message: "Internal Server Error." });
+        } finally {
+            await db_connection.query(`UNLOCK TABLES`);
+            db_connection.release();
+        }
+    },
+
+    resetVerify: async (req, res) => {
+        /*
+        JSON
+        {
+            "userEmail": "<email_id>",
+            "otp": "<otp>"
+        }
+        */
+        if (
+            req.body.userEmail === null ||
+            req.body.userEmail === undefined ||
+            req.body.userEmail === "" ||
+            !validator.isEmail(req.body.userEmail) ||
+            req.body.otp === null ||
+            req.body.otp === undefined ||
+            req.body.otp === ""
+        ) {
+            return res.status(400).send({ message: "Missing details." });
+        }
+
+        let db_connection = await db.promise().getConnection();
+
+        try {
+            await db_connection.query(`LOCK TABLES USERDATA READ, USERREGISTER READ`);
+            let [professor] = await db_connection.query(
+                `SELECT profName FROM USERDATA WHERE email = ?`,
+                [req.body.userEmail]
+            );
+            let [userRegister] = await db_connection.query(
+                `SELECT otp, createdAt FROM USERREGISTER WHERE email = ?`,
+                [req.body.userEmail]
+            );
+
+            if (professor.length === 0 || userRegister.length === 0) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(401).send({ message: "Invalid professor or OTP." });
+            }
+
+            const storedOTP = userRegister[0].otp;
+            const otpCreatedAt = new Date(userRegister[0].createdAt);
+            const currentTimestamp = new Date();
+
+            const otpValidityWindow = 5 * 60 * 1000;
+
+            if (storedOTP !== req.body.otp || currentTimestamp - otpCreatedAt > otpValidityWindow) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(401).send({ message: "Invalid OTP." });
+            }
+
+            await db_connection.query(`UNLOCK TABLES`);
+            return res.status(200).send({ message: "OTP verification successful." });
+        } catch (err) {
+            console.log(err);
+            const time = new Date();
+            fs.appendFileSync(
+                "logs/errorLogs.txt",
+                `${time.toISOString()} - resetVerify - ${err}\n`
+            );
+            return res.status(500).send({ message: "Internal Server Error." });
+        } finally {
+            await db_connection.query(`UNLOCK TABLES`);
+            db_connection.release();
         }
     },
 
@@ -461,9 +663,9 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can create classes.' });
             }
 
-            const { batchYear, Dept, Section, Semester, profID } = req.body;
+            const { batchYear, Dept, Section, Semester, profID, courseID } = req.body;
 
-            const [result] = await db.promise().execute('INSERT INTO class (batchYear, Dept, Section, Semester, profID) VALUES (?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID]);
+            const [result] = await db.promise().execute('INSERT INTO class (batchYear, Dept, Section, Semester, profID, courseID) VALUES (?, ?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID, courseID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Class created successfully' });
@@ -486,8 +688,8 @@ module.exports = {
 
             const profID = req.params.id;
 
-            // You can implement the logic to fetch classes taught by the professor based on their profID
-            const [rows] = await db.promise().execute('SELECT * FROM class WHERE profID = ?', [profID]);
+            // Fetch classes along with course information
+            const [rows] = await db.promise().execute('SELECT class.*, course.courseName FROM class JOIN course ON class.courseID = course.courseID WHERE profID = ?', [profID]);
 
             res.json(rows);
         } catch (error) {
