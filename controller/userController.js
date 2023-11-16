@@ -27,9 +27,9 @@ module.exports = {
 
     addAdmin: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
 
-            if (currentUserRole !== 1) {
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can add admin users.' });
             }
 
@@ -54,11 +54,13 @@ module.exports = {
 
     editAdmin: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
-            const adminID = req.params.id;
+            const currentUserRole = req.query.userRole;
+            const adminID = req.query.id;
             const { adminName, email, password } = req.body;
 
-            if (currentUserRole !== 1) {
+            let result; // Declare result variable outside the if blocks
+
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can edit admin profiles.' });
             }
 
@@ -66,9 +68,9 @@ module.exports = {
                 const salt = crypto.randomBytes(16).toString('hex');
                 const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-                const [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
+                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
             } else {
-                const [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
+                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
             }
 
             if (result.affectedRows === 1) {
@@ -84,10 +86,10 @@ module.exports = {
 
     deleteAdmin: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
-            const adminID = req.params.id;
+            const currentUserRole = req.query.userRole;
+            const adminID = req.query.id;
 
-            if (currentUserRole !== 1) {
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can delete admin members.' });
             }
 
@@ -108,9 +110,9 @@ module.exports = {
 
     addFaculty: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
 
-            if (currentUserRole !== 1) {
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can add faculty members.' });
             }
 
@@ -135,11 +137,15 @@ module.exports = {
 
     editFaculty: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
-            const profID = req.params.id;
+            const currentUserRole = req.query.userRole;
+            const profID = req.query.id;
             const { profName, email, password, courseID } = req.body;
 
             const [faculty] = await db.promise().execute('SELECT userRole FROM USERDATA WHERE profID = ?', [profID]);
+
+            if (currentUserRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only admins can edit faculty members.' });
+            }
 
             if (faculty.length === 0) {
                 return res.status(404).json({ error: 'Faculty member not found' });
@@ -179,13 +185,13 @@ module.exports = {
 
     deleteFaculty: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
 
-            if (currentUserRole !== 1) {
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can deactivate faculty members.' });
             }
 
-            const profID = req.params.id;
+            const profID = req.query.id;
 
             const [result] = await db.promise().execute('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, profID]); // Deactivate faculty member
 
@@ -577,21 +583,20 @@ module.exports = {
     addStudent: async (req, res) => {
         try {
             // Extract variables from req.body
-            const { RollNo, StdName, isActive } = req.body;
+            const { RollNo, StdName, classID } = req.body;
 
             // Validate the presence of required fields
-            console.log(req.body);
 
             // Ensure all required fields are defined
-            if (!RollNo || !StdName || !batchYear || !Dept || !Section) {
+            if (!RollNo || !StdName || !classID) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
 
-            // Your MySQL query
-            const query = 'INSERT INTO studentData (RollNo, StdName) VALUES (?, ?, ?, ?, ?)';
+            // MySQL query
+            const query = 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)';
 
             // Execute the query
-            const [result] = await db.promise().execute(query, [RollNo, StdName, batchYear, Dept, Section]);
+            const [result] = await db.promise().execute(query, [RollNo, StdName, classID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Student added successfully' });
@@ -605,11 +610,14 @@ module.exports = {
     },
 
     editStudent: async (req, res) => {
-        try {
-            const stdID = req.params.id;
-            const { RollNo, StdName, batchYear, Dept, Section } = req.body;
 
-            const [result] = await db.promise().execute('UPDATE studentData SET RollNo = ?, StdName = ?, batchYear = ?, Dept = ?, Section = ? WHERE StdID = ?', [RollNo, StdName, batchYear, Dept, Section, stdID]);
+        let db_connection = await db.promise().getConnection();
+
+        try {
+            const { RollNo, StdName, classID } = req.body;
+            console.log(req.body);
+
+            const [result] = await db_connection.query('UPDATE studentData SET RollNo = ?, StdName = ?, classID = ? WHERE RollNo = ?', [RollNo, StdName, classID, RollNo]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Student updated successfully' });
@@ -619,14 +627,18 @@ module.exports = {
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Failed to update student' });
+        } finally {
+            await db_connection.query(`UNLOCK TABLES`);
+            db_connection.release();
         }
     },
 
     deleteStudent: async (req, res) => {
         try {
-            const stdID = req.params.id;
+            // const stdID = req.params.id;
+            const RollNo = req.query.id;
 
-            const [result] = await db.promise().execute('UPDATE studentData SET isActive = ? WHERE StdID = ?', [0, stdID]);
+            const [result] = await db.promise().execute('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [0, RollNo]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Student deactivated successfully' });
@@ -639,9 +651,26 @@ module.exports = {
         }
     },
 
+    activateStudent: async (req, res) => {
+        try {
+            // const stdID = req.params.id;
+            const RollNo = req.query.id;
+
+            const [result] = await db.promise().execute('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [1, RollNo]);
+
+            if (result.affectedRows === 1) {
+                res.json({ message: 'Student activated successfully' });
+            } else {
+                res.status(404).json({ error: 'Student not found' });
+            }
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to activate student' });
+        }
+    },
+
     allStudents: async (req, res) => {
         try {
-            // Filter students by class where batchYear, Dept, and Section are received as query parameters:
             const { batchYear, dept, section } = req.query;
             const [rows] = await db.promise().execute('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [1, batchYear, dept, section]);
             if (batchYear !== undefined && dept !== undefined && section !== undefined) {
@@ -662,9 +691,10 @@ module.exports = {
     addStudents: async (req, res) => {
         try {
             const students = req.body;
+            const isActive = 1;
 
-            const values = students.map(({ RollNo, StdName, batchYear, Dept, Section }) => [RollNo, StdName, batchYear, Dept, Section]);
-            const query = 'INSERT INTO studentData (RollNo, StdName, batchYear, Dept, Section) VALUES ?';
+            const values = students.map(({ RollNo, StdName, classID, isActive }) => [RollNo, StdName, classID, isActive]);
+            const query = 'INSERT INTO studentData (RollNo, StdName, classID, isActive) VALUES ?';
 
             const [result] = await db.promise().query(query, [values]);
 
@@ -683,15 +713,17 @@ module.exports = {
 
     createClass: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
+            console.log(currentUserRole)
 
-            if (currentUserRole !== 0 && currentUserRole !== 1) {
+            if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can create classes.' });
             }
 
-            const { batchYear, Dept, Section, Semester, profID, courseID } = req.body;
+            const { batchYear, Dept, Section, Semester, profID } = req.body;
+            console.log(req.body.batchYear)
 
-            const [result] = await db.promise().execute('INSERT INTO class (batchYear, Dept, Section, Semester, profID, courseID) VALUES (?, ?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID, courseID]);
+            const [result] = await db.promise().execute('INSERT INTO class (batchYear, Dept, Section, Semester, profID) VALUES (?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Class created successfully' });
@@ -728,10 +760,13 @@ module.exports = {
 
     deleteClass: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
-            const classID = req.params.id;
+            const currentUserRole = req.query.userRole;
+            const classID = req.query.id;
 
-            if (currentUserRole !== 0 && currentUserRole !== 1) {
+            console.log(currentUserRole)
+            console.log(classID)
+
+            if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete classes.' });
             }
 
@@ -750,9 +785,9 @@ module.exports = {
 
     createSlots: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
 
-            if (currentUserRole !== 0 && currentUserRole !== 1) {
+            if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
             }
 
@@ -773,10 +808,10 @@ module.exports = {
 
     deleteSlot: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
-            const slotID = req.params.id;
+            const currentUserRole = req.query.userRole;
+            const slotID = req.query.id;
 
-            if (currentUserRole !== 0 && currentUserRole !== 1) {
+            if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete slots.' });
             }
 
