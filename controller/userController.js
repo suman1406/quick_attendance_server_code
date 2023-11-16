@@ -764,5 +764,4 @@ module.exports = {
             res.status(500).json({ error: 'Failed to delete slot' });
         }
     },
-
 }
