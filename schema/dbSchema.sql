@@ -4,13 +4,20 @@
 -- attdStatus: 0 -> Absent, 1 -> Present, 2 -> OD, 3 -> ML, 4 -> Other
 -- Table 1: Professors Table
 -- userRole: 0 -> professor, 1 -> admin.
+CREATE TABLE course (
+    courseID INT AUTO_INCREMENT PRIMARY KEY,
+    courseName VARCHAR(255) NOT NULL,
+    UNIQUE (courseName)
+);
 CREATE TABLE USERDATA (
     profID INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     profName VARCHAR(255) NOT NULL,
     userRole CHAR(1) NOT NULL,
-    isActive CHAR(1) NOT NULL DEFAULT '1'
+    isActive CHAR(1) NOT NULL DEFAULT '1',
+    courseID INT,
+    FOREIGN KEY (courseID) REFERENCES course(courseID);
 );
 -- This will act like a temporary table. Once the student verifies their email, the data will be moved to studentData table.
 CREATE TABLE USERREGISTER (
@@ -42,9 +49,7 @@ CREATE TABLE class (
     profID INT,
     Semester INT NOT NULL,
     FOREIGN KEY (profID) REFERENCES USERDATA(profID),
-    FOREIGN KEY (batchYear) REFERENCES studentData(batchYear),
-    FOREIGN KEY (Dept) REFERENCES studentData(Dept),
-    FOREIGN KEY (Section) REFERENCES studentData(Section)
+    FOREIGN KEY (batchYear, Dept, Section) REFERENCES studentData(batchYear, Dept, Section)
 );
 -- Table 4
 CREATE TABLE Slots (

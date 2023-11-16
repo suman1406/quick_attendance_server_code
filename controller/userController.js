@@ -114,13 +114,13 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can add faculty members.' });
             }
 
-            const { profName, email, password } = req.body;
+            const { profName, email, password, courseID } = req.body;
 
             const salt = crypto.randomBytes(16).toString('hex');
 
             const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            const [result] = await db.promise().execute('INSERT INTO USERDATA (profName, email, password, userRole) VALUES (?, ?, ?, ?)', [profName, email, hashedPassword, 0]);
+            const [result] = await db.promise().execute('INSERT INTO USERDATA (profName, email, password, userRole, courseID) VALUES (?, ?, ?, ?, ?)', [profName, email, hashedPassword, 0, courseID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Faculty member created successfully' });
@@ -137,7 +137,7 @@ module.exports = {
         try {
             const currentUserRole = req.userRole;
             const profID = req.params.id;
-            const { profName, email, password } = req.body;
+            const { profName, email, password, courseID } = req.body;
 
             const [faculty] = await db.promise().execute('SELECT userRole FROM USERDATA WHERE profID = ?', [profID]);
 
@@ -155,14 +155,15 @@ module.exports = {
                 }
             }
 
+            let result;
+
             if (password) {
                 const salt = crypto.randomBytes(16).toString('hex');
-
                 const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-                const [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [profName, email, hashedPassword, profID]);
+                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, email, hashedPassword, courseID, profID]);
             } else {
-                const [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [profName, email, profID]);
+                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, email, courseID, profID]);
             }
 
             if (result.affectedRows === 1) {
@@ -201,9 +202,10 @@ module.exports = {
 
     allFaculty: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
+            console.log(currentUserRole)
 
-            if (currentUserRole !== 1) {
+            if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only administrators can access faculty members.' });
             }
 
@@ -570,11 +572,26 @@ module.exports = {
         }
     },
 
+    // -------------------Student Account-------------------------
+
     addStudent: async (req, res) => {
         try {
-            const { RollNo, StdName, batchYear, Dept, Section } = req.body;
+            // Extract variables from req.body
+            const { RollNo, StdName, isActive } = req.body;
 
-            const [result] = await db.promise().execute('INSERT INTO studentData (RollNo, StdName, batchYear, Dept, Section) VALUES (?, ?, ?, ?, ?)', [RollNo, StdName, batchYear, Dept, Section]);
+            // Validate the presence of required fields
+            console.log(req.body);
+
+            // Ensure all required fields are defined
+            if (!RollNo || !StdName || !batchYear || !Dept || !Section) {
+                return res.status(400).json({ error: 'All fields are required' });
+            }
+
+            // Your MySQL query
+            const query = 'INSERT INTO studentData (RollNo, StdName) VALUES (?, ?, ?, ?, ?)';
+
+            // Execute the query
+            const [result] = await db.promise().execute(query, [RollNo, StdName, batchYear, Dept, Section]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Student added successfully' });
@@ -625,8 +642,15 @@ module.exports = {
     allStudents: async (req, res) => {
         try {
             // Filter students by class where batchYear, Dept, and Section are received as query parameters:
-            const { batchYear, Dept, Section } = req.query;
-            const [rows] = await db.promise().execute('SELECT * FROM studentData WHERE isActive = ? AND batchYear = ? AND Dept = ? AND Section = ?', [1, batchYear, Dept, Section]);
+            const { batchYear, dept, section } = req.query;
+            const [rows] = await db.promise().execute('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [1, batchYear, dept, section]);
+            if (batchYear !== undefined && dept !== undefined && section !== undefined) {
+                const [rows] = await db.promise().execute('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [batchYear, dept, section]);
+            } else {
+                // Handle the case where one of the variables is undefined
+                console.error('One of the parameters is undefined');
+                res.status(500).json({ error: 'Internal Server Error' });
+            }
 
             res.json(rows);
         } catch (error) {
@@ -655,6 +679,8 @@ module.exports = {
         }
     },
 
+    // ------------------------------------------------------------
+
     createClass: async (req, res) => {
         try {
             const currentUserRole = req.userRole;
@@ -680,16 +706,18 @@ module.exports = {
 
     myClasses: async (req, res) => {
         try {
-            const currentUserRole = req.userRole;
+            const currentUserRole = req.query.userRole;
 
-            if (currentUserRole !== 0 && currentUserRole !== 1) {
+            if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access classes.' });
             }
 
-            const profID = req.params.id;
+            const profID = req.query.id;
+            console.log(profID)
 
             // Fetch classes along with course information
-            const [rows] = await db.promise().execute('SELECT class.*, course.courseName FROM class JOIN course ON class.courseID = course.courseID WHERE profID = ?', [profID]);
+            const [rows] = await db.promise().execute('SELECT c.Dept,c.Section, c.semester, c.batchYear, co.courseName FROM (class c JOIN userdata on userdata.profID = c.profID ) join course co on co.courseID = userdata.courseID WHERE c.profID = ?', [profID]);
+            console.log(rows)
 
             res.json(rows);
         } catch (error) {
