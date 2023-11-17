@@ -26,7 +26,24 @@ module.exports = {
     // -------------------Admin Account-------------------------
 
     addAdmin: async (req, res) => {
+        /* 
+        queries {
+           userRole:<userRole> 
+        }
+        JSON
+        {
+            "adminName":"<adminName>",
+            "email":"<email>",
+            "password":"<password>"
+        }
+        */
+        let db_connection;
+
         try {
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
+
             const currentUserRole = req.query.userRole;
 
             if (currentUserRole != 1) {
@@ -36,10 +53,15 @@ module.exports = {
             const { adminName, email, password } = req.body;
 
             const salt = crypto.randomBytes(16).toString('hex');
-
             const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            const [result] = await db.promise().execute('INSERT INTO USERDATA (profName, email, password, userRole) VALUES (?, ?, ?, ?)', [adminName, email, hashedPassword, 1]);
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const [result] = await db_connection.query('INSERT INTO USERDATA (profName, email, password, userRole) VALUES (?, ?, ?, ?)', [adminName, email, hashedPassword, 1]);
+
+            // Commit the transaction
+            await db_connection.query('COMMIT');
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Admin user created successfully' });
@@ -48,7 +70,19 @@ module.exports = {
             }
         } catch (error) {
             console.error(error);
+
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+
             res.status(500).json({ error: 'Failed to create admin user' });
+        } finally {
+            // Unlock the tables
+            if (db_connection) {
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+            }
         }
     },
 
@@ -58,7 +92,9 @@ module.exports = {
             const adminID = req.query.id;
             const { adminName, email, password } = req.body;
 
-            let result; // Declare result variable outside the if blocks
+            let db_connection = await db.promise().getConnection();
+
+            let result;
 
             if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can edit admin profiles.' });
@@ -68,9 +104,9 @@ module.exports = {
                 const salt = crypto.randomBytes(16).toString('hex');
                 const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
+                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
             } else {
-                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
+                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
             }
 
             if (result.affectedRows === 1) {
@@ -93,7 +129,9 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can delete admin members.' });
             }
 
-            const [result] = await db.promise().execute('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, adminID]);
+            let db_connection = await db.promise().getConnection();
+
+            const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, adminID]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Admin member deleted successfully' });
@@ -116,13 +154,15 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can add faculty members.' });
             }
 
+            let db_connection = await db.promise().getConnection();
+
             const { profName, email, password, courseID } = req.body;
 
             const salt = crypto.randomBytes(16).toString('hex');
 
             const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            const [result] = await db.promise().execute('INSERT INTO USERDATA (profName, email, password, userRole, courseID) VALUES (?, ?, ?, ?, ?)', [profName, email, hashedPassword, 0, courseID]);
+            const [result] = await db_connection.query('INSERT INTO USERDATA (profName, email, password, userRole, courseID) VALUES (?, ?, ?, ?, ?)', [profName, email, hashedPassword, 0, courseID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Faculty member created successfully' });
@@ -141,7 +181,9 @@ module.exports = {
             const profID = req.query.id;
             const { profName, email, password, courseID } = req.body;
 
-            const [faculty] = await db.promise().execute('SELECT userRole FROM USERDATA WHERE profID = ?', [profID]);
+            let db_connection = await db.promise().getConnection();
+
+            const [faculty] = await db_connection.query('SELECT userRole FROM USERDATA WHERE profID = ?', [profID]);
 
             if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can edit faculty members.' });
@@ -167,9 +209,9 @@ module.exports = {
                 const salt = crypto.randomBytes(16).toString('hex');
                 const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, email, hashedPassword, courseID, profID]);
+                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, email, hashedPassword, courseID, profID]);
             } else {
-                [result] = await db.promise().execute('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, email, courseID, profID]);
+                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, email, courseID, profID]);
             }
 
             if (result.affectedRows === 1) {
@@ -191,9 +233,11 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can deactivate faculty members.' });
             }
 
+            let db_connection = await db.promise().getConnection();
+
             const profID = req.query.id;
 
-            const [result] = await db.promise().execute('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, profID]); // Deactivate faculty member
+            const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, profID]); // Deactivate faculty member
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Faculty member deactivated successfully' });
@@ -215,7 +259,9 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only administrators can access faculty members.' });
             }
 
-            const [rows] = await db.promise().execute('SELECT * FROM USERDATA WHERE isActive = ? AND userRole = ?', [1, 0]);
+            let db_connection = await db.promise().getConnection();
+
+            const [rows] = await db_connection.query('SELECT * FROM USERDATA WHERE isActive = ? AND userRole = ?', [1, 0]);
 
             res.json(rows);
         } catch (error) {
@@ -585,6 +631,8 @@ module.exports = {
             // Extract variables from req.body
             const { RollNo, StdName, classID } = req.body;
 
+            let db_connection = await db.promise().getConnection();
+
             // Validate the presence of required fields
 
             // Ensure all required fields are defined
@@ -596,7 +644,7 @@ module.exports = {
             const query = 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)';
 
             // Execute the query
-            const [result] = await db.promise().execute(query, [RollNo, StdName, classID]);
+            const [result] = await db_connection.query(query, [RollNo, StdName, classID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Student added successfully' });
@@ -635,10 +683,13 @@ module.exports = {
 
     deleteStudent: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             // const stdID = req.params.id;
             const RollNo = req.query.id;
 
-            const [result] = await db.promise().execute('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [0, RollNo]);
+            const [result] = await db_connection.query('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [0, RollNo]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Student deactivated successfully' });
@@ -653,10 +704,13 @@ module.exports = {
 
     activateStudent: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             // const stdID = req.params.id;
             const RollNo = req.query.id;
 
-            const [result] = await db.promise().execute('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [1, RollNo]);
+            const [result] = await db_connection.query('UPDATE studentData SET isActive = ? WHERE RollNo = ?', [1, RollNo]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Student activated successfully' });
@@ -671,10 +725,13 @@ module.exports = {
 
     allStudents: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const { batchYear, dept, section } = req.query;
-            const [rows] = await db.promise().execute('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [1, batchYear, dept, section]);
+            const [rows] = await db_connection.query('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [1, batchYear, dept, section]);
             if (batchYear !== undefined && dept !== undefined && section !== undefined) {
-                const [rows] = await db.promise().execute('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [batchYear, dept, section]);
+                const [rows] = await db_connection.query('SELECT s.* FROM studentData s join class c on s.classID=c.classID WHERE c.batchYear = ? AND c.Dept = ? AND c.Section = ?', [batchYear, dept, section]);
             } else {
                 // Handle the case where one of the variables is undefined
                 console.error('One of the parameters is undefined');
@@ -690,6 +747,9 @@ module.exports = {
 
     addStudents: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const students = req.body;
             const isActive = 1;
 
@@ -713,6 +773,9 @@ module.exports = {
 
     createClass: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const currentUserRole = req.query.userRole;
             console.log(currentUserRole)
 
@@ -723,7 +786,7 @@ module.exports = {
             const { batchYear, Dept, Section, Semester, profID } = req.body;
             console.log(req.body.batchYear)
 
-            const [result] = await db.promise().execute('INSERT INTO class (batchYear, Dept, Section, Semester, profID) VALUES (?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID]);
+            const [result] = await db_connection.query('INSERT INTO class (batchYear, Dept, Section, Semester, profID) VALUES (?, ?, ?, ?, ?)', [batchYear, Dept, Section, Semester, profID]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Class created successfully' });
@@ -738,6 +801,9 @@ module.exports = {
 
     myClasses: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const currentUserRole = req.query.userRole;
 
             if (currentUserRole != 0 && currentUserRole != 1) {
@@ -748,7 +814,7 @@ module.exports = {
             console.log(profID)
 
             // Fetch classes along with course information
-            const [rows] = await db.promise().execute('SELECT c.Dept,c.Section, c.semester, c.batchYear, co.courseName FROM (class c JOIN userdata on userdata.profID = c.profID ) join course co on co.courseID = userdata.courseID WHERE c.profID = ?', [profID]);
+            const [rows] = await db_connection.query('SELECT c.Dept,c.Section, c.semester, c.batchYear, co.courseName FROM (class c JOIN userdata on userdata.profID = c.profID ) join course co on co.courseID = userdata.courseID WHERE c.profID = ?', [profID]);
             console.log(rows)
 
             res.json(rows);
@@ -760,6 +826,9 @@ module.exports = {
 
     deleteClass: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const currentUserRole = req.query.userRole;
             const classID = req.query.id;
 
@@ -770,7 +839,7 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete classes.' });
             }
 
-            const [result] = await db.promise().execute('DELETE FROM class WHERE classID = ?', [classID]);
+            const [result] = await db_connection.query('DELETE FROM class WHERE classID = ?', [classID]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Class deleted successfully' });
@@ -785,6 +854,9 @@ module.exports = {
 
     createSlots: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const currentUserRole = req.query.userRole;
 
             if (currentUserRole != 0 && currentUserRole != 1) {
@@ -793,7 +865,7 @@ module.exports = {
 
             const { classID, periodNo } = req.body;
 
-            const [result] = await db.promise().execute('INSERT INTO Slots (classID, periodNo) VALUES (?, ?)', [classID, periodNo]);
+            const [result] = await db_connection.query('INSERT INTO Slots (classID, periodNo) VALUES (?, ?)', [classID, periodNo]);
 
             if (result.affectedRows === 1) {
                 res.status(201).json({ message: 'Slot created successfully' });
@@ -808,6 +880,9 @@ module.exports = {
 
     deleteSlot: async (req, res) => {
         try {
+
+            let db_connection = await db.promise().getConnection();
+
             const currentUserRole = req.query.userRole;
             const slotID = req.query.id;
 
@@ -815,7 +890,7 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete slots.' });
             }
 
-            const [result] = await db.promise().execute('DELETE FROM Slots WHERE slotID = ?', [slotID]);
+            const [result] = await db_connection.query('DELETE FROM Slots WHERE slotID = ?', [slotID]);
 
             if (result.affectedRows === 1) {
                 res.json({ message: 'Slot deleted successfully' });
