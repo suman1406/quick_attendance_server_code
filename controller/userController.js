@@ -23,7 +23,7 @@ module.exports = {
         return res.status(200).send({ "message": 'Ok' });
     },
 
-    // -------------------Admin Account-------------------------
+    // -------------------Admin Operations Starts-------------------------
 
     addAdmin: async (req, res) => {
         /* 
@@ -87,12 +87,29 @@ module.exports = {
     },
 
     editAdmin: async (req, res) => {
+        /*
+        queries {
+           userRole:<userRole>
+           id:<adminID>
+        }
+        JSON
+        {
+            "adminName":"<adminName>",
+            "email":"<email>",
+            "password":"<password>"
+        }
+        */
+
+        let db_connection;
+
         try {
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
+
             const currentUserRole = req.query.userRole;
             const adminID = req.query.id;
             const { adminName, email, password } = req.body;
-
-            let db_connection = await db.promise().getConnection();
 
             let result;
 
@@ -100,28 +117,66 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can edit admin profiles.' });
             }
 
-            if (password) {
-                const salt = crypto.randomBytes(16).toString('hex');
-                const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
 
-                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
-            } else {
-                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
-            }
+            try {
+                if (password) {
+                    const salt = crypto.randomBytes(16).toString('hex');
+                    const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            if (result.affectedRows === 1) {
-                res.json({ message: 'Admin member updated successfully' });
-            } else {
-                res.status(404).json({ error: 'Admin member not found' });
+                    [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ? WHERE profID = ?', [adminName, email, hashedPassword, adminID]);
+                } else {
+                    [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ? WHERE profID = ?', [adminName, email, adminID]);
+                }
+
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+
+                if (result.affectedRows === 1) {
+                    res.json({ message: 'Admin member updated successfully' });
+                } else {
+                    res.status(404).json({ error: 'Admin member not found' });
+                }
+            } catch (error) {
+                console.error(error);
+
+                // Rollback the transaction in case of an error
+                await db_connection.query('ROLLBACK');
+
+                res.status(500).json({ error: 'Failed to update admin member' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: 'Failed to update admin member' });
+            res.status(500).json({ error: 'Failed to acquire database connection' });
         }
     },
 
     deleteAdmin: async (req, res) => {
+        /*
+        queries {
+           userRole:<userRole>
+           id:<adminID>
+        }
+        JSON
+        {
+            "adminName":"<adminName>",
+            "email":"<email>",
+            "password":"<password>"
+        }
+        */
+
+        let db_connection;
+
         try {
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
+
             const currentUserRole = req.query.userRole;
             const adminID = req.query.id;
 
@@ -129,24 +184,58 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can delete admin members.' });
             }
 
-            let db_connection = await db.promise().getConnection();
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
 
-            const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, adminID]);
+            try {
+                const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, adminID]);
 
-            if (result.affectedRows === 1) {
-                res.json({ message: 'Admin member deleted successfully' });
-            } else {
-                res.status(404).json({ error: 'Admin member not found' });
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+
+                if (result.affectedRows === 1) {
+                    res.json({ message: 'Admin member deleted successfully' });
+                } else {
+                    res.status(404).json({ error: 'Admin member not found' });
+                }
+            } catch (error) {
+                console.error(error);
+
+                // Rollback the transaction in case of an error
+                await db_connection.query('ROLLBACK');
+
+                res.status(500).json({ error: 'Failed to delete admin member' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: 'Failed to delete admin member' });
+            res.status(500).json({ error: 'Failed to acquire database connection' });
         }
     },
 
-    // -------------------Admin Account-------------------------
+    // -------------------Admin Operations Ends-------------------------
+
+    // -------------------Faculty Operations Starts-------------------------
 
     addFaculty: async (req, res) => {
+        /*
+       queries {
+          userRole:<userRole>
+       }
+       JSON
+       { 
+           "profName":<profName>,
+           "email":<email>,
+           "password":<password>,
+           "courseID":<courseID>
+       }
+       */
+
+        let db_connection;
+
         try {
             const currentUserRole = req.query.userRole;
 
@@ -154,36 +243,73 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can add faculty members.' });
             }
 
-            let db_connection = await db.promise().getConnection();
-
             const { profName, email, password, courseID } = req.body;
 
             const salt = crypto.randomBytes(16).toString('hex');
-
             const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            const [result] = await db_connection.query('INSERT INTO USERDATA (profName, email, password, userRole, courseID) VALUES (?, ?, ?, ?, ?)', [profName, email, hashedPassword, 0, courseID]);
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
 
-            if (result.affectedRows === 1) {
-                res.status(201).json({ message: 'Faculty member created successfully' });
-            } else {
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            try {
+                const [result] = await db_connection.query('INSERT INTO USERDATA (profName, email, password, userRole, courseID) VALUES (?, ?, ?, ?, ?)', [profName, email, hashedPassword, USER_ROLE.FACULTY, courseID]);
+
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+
+                if (result.affectedRows === 1) {
+                    res.status(201).json({ message: 'Faculty member created successfully' });
+                } else {
+                    res.status(500).json({ error: 'Failed to create faculty member' });
+                }
+            } catch (error) {
+                console.error(error);
+
+                // Rollback the transaction in case of an error
+                await db_connection.query('ROLLBACK');
+
                 res.status(500).json({ error: 'Failed to create faculty member' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: 'Failed to create faculty member' });
+            res.status(500).json({ error: 'Failed to acquire database connection' });
         }
     },
 
     editFaculty: async (req, res) => {
+        /*
+            queries {
+                userRole: <userRole>,
+                id: <facultyID>
+            }
+            JSON
+            {
+                "profName": <profName>,
+                "email": <email>,
+                "password": <password>,
+                "courseID": <courseID>
+            }
+        */
+
+        let db_connection;
+
         try {
             const currentUserRole = req.query.userRole;
-            const profID = req.query.id;
+            const facultyID = req.query.id;
             const { profName, email, password, courseID } = req.body;
 
-            let db_connection = await db.promise().getConnection();
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
 
-            const [faculty] = await db_connection.query('SELECT userRole FROM USERDATA WHERE profID = ?', [profID]);
+            const [faculty] = await db_connection.query('SELECT userRole FROM USERDATA WHERE profID = ?', [facultyID]);
 
             if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only admins can edit faculty members.' });
@@ -198,34 +324,62 @@ module.exports = {
             if (currentUserRole === 0) {
                 if (facultyUserRole === 1) {
                     return res.status(403).json({ error: 'Permission denied. Professors cannot edit admin profiles.' });
-                } else if (profID !== req.userID) {
+                } else if (facultyID != req.userID) {
                     return res.status(403).json({ error: 'Permission denied. Professors can only edit their own faculty profile.' });
                 }
             }
 
             let result;
 
-            if (password) {
-                const salt = crypto.randomBytes(16).toString('hex');
-                const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
 
-                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, email, hashedPassword, courseID, profID]);
-            } else {
-                [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, email, courseID, profID]);
-            }
+            try {
+                if (password) {
+                    const salt = crypto.randomBytes(16).toString('hex');
+                    const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-            if (result.affectedRows === 1) {
-                res.json({ message: 'Faculty member updated successfully' });
-            } else {
-                res.status(404).json({ error: 'Faculty member not found' });
+                    [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, email, hashedPassword, courseID, facultyID]);
+                } else {
+                    [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, email, courseID, facultyID]);
+                }
+
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+
+                if (result.affectedRows === 1) {
+                    res.json({ message: 'Faculty member updated successfully' });
+                } else {
+                    res.status(404).json({ error: 'Faculty member not found' });
+                }
+            } catch (error) {
+                console.error(error);
+
+                // Rollback the transaction in case of an error
+                await db_connection.query('ROLLBACK');
+
+                res.status(500).json({ error: 'Failed to update faculty member' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: 'Failed to update faculty member' });
+            res.status(500).json({ error: 'Failed to acquire database connection' });
         }
     },
 
     deleteFaculty: async (req, res) => {
+        /*
+            queries {
+                userRole: <userRole>,
+                id: <facultyID>
+            }
+        */
+
+        let db_connection;
+
         try {
             const currentUserRole = req.query.userRole;
 
@@ -233,33 +387,65 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only admins can deactivate faculty members.' });
             }
 
-            let db_connection = await db.promise().getConnection();
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
 
-            const profID = req.query.id;
+            const facultyID = req.query.id;
 
-            const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, profID]); // Deactivate faculty member
+            let result;
 
-            if (result.affectedRows === 1) {
-                res.json({ message: 'Faculty member deactivated successfully' });
-            } else {
-                res.status(404).json({ error: 'Faculty member not found' });
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            try {
+                [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE profID = ?', [0, facultyID]); // Deactivate faculty member
+
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+
+                if (result.affectedRows === 1) {
+                    res.json({ message: 'Faculty member deactivated successfully' });
+                } else {
+                    res.status(404).json({ error: 'Faculty member not found' });
+                }
+            } catch (error) {
+                console.error(error);
+
+                // Rollback the transaction in case of an error
+                await db_connection.query('ROLLBACK');
+
+                res.status(500).json({ error: 'Failed to deactivate faculty member' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
         } catch (error) {
             console.error(error);
-            res.status(500).json({ error: 'Failed to deactivate faculty member' });
+            res.status(500).json({ error: 'Failed to acquire database connection' });
         }
     },
 
     allFaculty: async (req, res) => {
+        /*
+            queries {
+                userRole: <userRole>
+            }
+        */
+
+        let db_connection;
+
         try {
             const currentUserRole = req.query.userRole;
-            console.log(currentUserRole)
 
             if (currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only administrators can access faculty members.' });
             }
 
-            let db_connection = await db.promise().getConnection();
+            // Lock the necessary tables to prevent concurrent writes
+            db_connection = await db.promise().getConnection();
+            await db_connection.query('LOCK TABLES USERDATA READ');
 
             const [rows] = await db_connection.query('SELECT * FROM USERDATA WHERE isActive = ? AND userRole = ?', [1, 0]);
 
@@ -267,8 +453,18 @@ module.exports = {
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Failed to fetch faculty members' });
+        } finally {
+            // Unlock the tables
+            if (db_connection) {
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+            }
         }
     },
+
+    // -------------------Faculty Operations Ends-------------------------
+
+    // -------------------Authentication Starts-------------------------
 
     userLogin: async (req, res) => {
         if (
@@ -300,7 +496,7 @@ module.exports = {
             if (professor.length > 0) {
                 if (professor[0].isActive === '0') {
                     await db_connection.query('UNLOCK TABLES');
-                    return res.status(401).send({ "message": "Your account has been deactivated." });
+                    return res.status(401).send({ "message": "Your Operations has been deactivated." });
                 }
 
                 // const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.body.password), Buffer.from(professor[0].password, 'hex'));
@@ -624,7 +820,9 @@ module.exports = {
         }
     },
 
-    // -------------------Student Account-------------------------
+    // -------------------Authentication Ends--------------------------
+
+    // -------------------Student Operations Starts------------------------------
 
     addStudent: async (req, res) => {
         try {
@@ -769,7 +967,9 @@ module.exports = {
         }
     },
 
-    // ------------------------------------------------------------
+    // -------------------Student Operations Ends------------------------------
+
+    // -------------------Class Operations Starts------------------------------
 
     createClass: async (req, res) => {
         try {
@@ -852,6 +1052,10 @@ module.exports = {
         }
     },
 
+    // -------------------Class Operations Ends------------------------------
+
+    // -------------------Slot Operations Starts------------------------------
+
     createSlots: async (req, res) => {
         try {
 
@@ -902,4 +1106,6 @@ module.exports = {
             res.status(500).json({ error: 'Failed to delete slot' });
         }
     },
+
+    // -------------------Slot Operations Ends------------------------------
 }
