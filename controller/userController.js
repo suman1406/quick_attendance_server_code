@@ -77,6 +77,8 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
             }
 
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addAdmin - ${error}\n`);
+
             res.status(500).json({ error: 'Failed to create admin user' });
         } finally {
             // Unlock the tables
@@ -146,6 +148,8 @@ module.exports = {
                 // Rollback the transaction in case of an error
                 await db_connection.query('ROLLBACK');
 
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - editAdmin - ${error}\n`);
+
                 res.status(500).json({ error: 'Failed to update admin member' });
             } finally {
                 // Unlock the tables
@@ -206,6 +210,8 @@ module.exports = {
 
                 // Rollback the transaction in case of an error
                 await db_connection.query('ROLLBACK');
+
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteAdmin - ${error}\n`);
 
                 res.status(500).json({ error: 'Failed to delete admin member' });
             } finally {
@@ -274,6 +280,8 @@ module.exports = {
 
                 // Rollback the transaction in case of an error
                 await db_connection.query('ROLLBACK');
+
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addFaculty - ${error}\n`);
 
                 res.status(500).json({ error: 'Failed to create faculty member' });
             } finally {
@@ -363,6 +371,8 @@ module.exports = {
                 // Rollback the transaction in case of an error
                 await db_connection.query('ROLLBACK');
 
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - editFaculty - ${error}\n`);
+
                 res.status(500).json({ error: 'Failed to update faculty member' });
             } finally {
                 // Unlock the tables
@@ -421,6 +431,8 @@ module.exports = {
                 // Rollback the transaction in case of an error
                 await db_connection.query('ROLLBACK');
 
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteFaculty - ${error}\n`);
+
                 res.status(500).json({ error: 'Failed to deactivate faculty member' });
             } finally {
                 // Unlock the tables
@@ -458,6 +470,7 @@ module.exports = {
             res.json(rows);
         } catch (error) {
             console.error(error);
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - allFaculty - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch faculty members' });
         } finally {
             // Unlock the tables
@@ -880,13 +893,14 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addStudent - ${error}\n`);
+
             res.status(500).json({ error: 'Failed to add student' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -935,13 +949,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - editStudent - ${error}\n`);
             res.status(500).json({ error: 'Failed to update student' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -994,13 +1007,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteStudent - ${error}\n`);
             res.status(500).json({ error: 'Failed to deactivate student' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1053,13 +1065,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - activateStudent - ${error}\n`);
             res.status(500).json({ error: 'Failed to activate student' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1092,13 +1103,12 @@ module.exports = {
             }
         } catch (error) {
             console.error(error);
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - allStudents - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch students' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1154,13 +1164,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addStudents - ${error}\n`);
             res.status(500).json({ error: 'Failed to add students' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1221,13 +1230,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - createClass - ${error}\n`);
             res.status(500).json({ error: 'Failed to create class' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1275,13 +1283,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - myClasses - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch classes' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1332,13 +1339,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteClass - ${error}\n`);
             res.status(500).json({ error: 'Failed to delete class' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1395,13 +1401,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - createSlots - ${error}\n`);
             res.status(500).json({ error: 'Failed to create slot' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     },
 
@@ -1449,13 +1454,12 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteSlot - ${error}\n`);
             res.status(500).json({ error: 'Failed to delete slot' });
         } finally {
             // Unlock the tables
-            if (db_connection) {
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
-            }
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
         }
     }
 
