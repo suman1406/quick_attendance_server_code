@@ -31,7 +31,7 @@ router.put('/edit-student/:id', userWebController.editStudent); //done
 router.delete('/delete-student/:id', userWebController.deleteStudent); //done
 router.post('/activate-student/:id', userWebController.activateStudent); //done
 router.get('/all-students', userWebController.allStudents); //done
-router.post('/add-students', userWebController.addStudents); //done
+router.post('/add-students', userWebController.addStudents); //done || should add validations
 
 // Class routes
 router.post('/add-class', userWebController.createClass); //done
