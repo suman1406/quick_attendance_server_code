@@ -5,7 +5,7 @@ const TEMPLATE_ACCOUNT_DEACTIVATED = (managerEmail, managerName) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Amrita Placement Tracker OTP</title>
+        <title>Amrita Quick Attendance OTP</title>
         <style>
             * {
                 margin: 0;
