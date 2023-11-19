@@ -486,147 +486,179 @@ module.exports = {
     // -------------------Authentication Starts-------------------------
 
     userLogin: async (req, res) => {
+        /*
+        JSON
+        {
+            "email": "<email>",
+            "password": "<password>"
+        }
+        */
         if (
             req.body.email === null ||
             req.body.email === undefined ||
-            req.body.email === "" ||
+            req.body.email === '' ||
             !validator.isEmail(req.body.email) ||
             req.body.password === null ||
             req.body.password === undefined ||
-            req.body.password === ""
+            req.body.password === ''
         ) {
-            return res.status(400).send({ "message": "Missing details." });
+            return res.status(400).send({ message: 'Missing details.' });
         }
 
         let db_connection = await db.promise().getConnection();
 
         try {
-            await db_connection.query('LOCK TABLES USERDATA READ');
+            await db_connection.query(`LOCK TABLES USERDATA READ`);
 
-            let [professor] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ?', [req.body.email]);
+            let [user] = await db_connection.query(`SELECT * FROM USERDATA WHERE email = ? AND password = ?`, [req.body.email, req.body.password]);
 
-            console.log(professor);
+            if (user.length > 0) {
 
-            if (professor.length === 0) {
-                await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "User does not exist." });
-            }
-
-            if (professor.length > 0) {
-                if (professor[0].isActive === '0') {
-                    await db_connection.query('UNLOCK TABLES');
-                    return res.status(401).send({ "message": "Your Operations has been deactivated." });
+                if (user[0].isActive === "0") {
+                    await db_connection.query(`UNLOCK TABLES`);
+                    return res.status(401).send({ "message": "Your Account has been deactivated. Check your mail for further instructions." });
                 }
 
-                // const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.body.password), Buffer.from(professor[0].password, 'hex'));
+                if (user[0].isActive === "1") {
+                    // send otp
+                    const otp = generateOTP();
 
-                const passwordMatch = (req.body.password === professor[0].password);
+                    await db_connection.query(`LOCK TABLES USERREGISTER WRITE`);
 
-                if (passwordMatch) {
+                    let [user_2] = await db_connection.query(`SELECT * FROM USERREGISTER WHERE email = ?`, [req.body.email]);
+
+                    if (user_2.length === 0) {
+                        await db_connection.query(`INSERT INTO USERREGISTER (Email, otp, createdAt) VALUES (?, ?, ?)`, [req.body.email, otp, new Date()]);
+                    } else {
+                        await db_connection.query(`UPDATE USERREGISTER SET otp = ?, createdAt = ? WHERE email = ?`, [otp, new Date(), req.body.email]);
+                    }
+
+                    // send mail
+                    mailer.loginOTP(user[0].profName, otp, user[0].email);
+
                     const secret_token = await webTokenGenerator({
                         "email": req.body.email,
-                        "userRole": professor[0].userRole,
+                        "userRole": user[0].userRole,
                     });
 
-                    await db_connection.query('UNLOCK TABLES');
+                    await db_connection.query(`UNLOCK TABLES`);
 
-                    return res.status(200).send({
-                        "message": "User logged in!",
+                    console.log(secret_token)
+                    return res.status(201).send({
+                        "message": "First time login! OTP sent to email.",
                         "SECRET_TOKEN": secret_token,
-                        "profName": professor[0].profName,
-                        "email": professor[0].email,
-                        "userRole": professor[0].userRole,
-                        "profID": professor[0].profID,
-                        "isActive": professor[0].isActive,
+                        "email": user[0].email,
+                        "profName": user[0].profName,
                     });
-                } else {
-                    await db_connection.query('UNLOCK TABLES');
-                    return res.status(401).send({ "message": "Invalid email or password." });
+                    
+
+                } else if (user[0].isActive != "1") {
+                    await db_connection.query(`UNLOCK TABLES`);
+                    return res.status(401).send({ "message": "Access Restricted." });
                 }
-            } else {
-                await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "Invalid email or password." });
+
+                const secret_token = await webTokenGenerator({
+                    "email": req.body.email,
+                    "userRole": user[0].userRole,
+                });
+
+                await db_connection.query(`UNLOCK TABLES`);
+
+                return res.status(200).send({
+                    "message": "User logged in!",
+                    "SECRET_TOKEN": secret_token,
+                    "email": user[0].email,
+                    "profName": user[0].profName,
+                    "userRole": user[0].userRole,
+                    "profId": user[0].id,
+                    "isActive": user[0].isActive,
+                });
+
             }
+
+            await db_connection.query(`UNLOCK TABLES`);
+
+            return res.status(400).send({ "message": "Invalid email or password!" });
+
         } catch (err) {
             console.log(err);
             const time = new Date();
             fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - userLogin - ${err}\n`);
             return res.status(500).send({ "message": "Internal Server Error." });
         } finally {
-            await db_connection.query('UNLOCK TABLES');
+            await db_connection.query(`UNLOCK TABLES`);
             db_connection.release();
         }
     },
 
     loginVerify: [
+        /*
+        JSON
+        {
+            "otp":"<otp>",
+            "newPassword": "<password>"
+        }
+        */
         otpTokenValidator,
         async (req, res) => {
+
+            if (
+                req.body.email === null ||
+                req.body.email === undefined ||
+                req.body.email === '' ||
+                !validator.isEmail(req.body.email) ||
+                req.body.password === null ||
+                req.body.password === undefined ||
+                req.body.password === ''
+            ) {
+                return res.status(400).send({ message: 'Missing details.' });
+            }
+
             let db_connection = await db.promise().getConnection();
 
             try {
-                // Check if the user exists
-                let [user] = await db_connection.query('SELECT * from USERDATA WHERE email = ?', [req.email]);
+                await db_connection.query(`LOCK TABLES USERREGISTER WRITE, USERDATA WRITE`);
+
+                let [check_1] = await db_connection.query(`DELETE FROM USERREGISTER WHERE email = ? AND otp ?`, [req.body.email, req.body.otp]);
+
+                if (check_1.affectedRows === 0) {
+                    await db_connection.query(`UNLOCK TABLES`);
+                    return res.status(401).send({ "message": "Invalid OTP." });
+                }
+
+                let [user] = await db_connection.query(`SELECT * FROM USERDATA WHERE email = ?`, [req.email]);
 
                 if (user.length === 0) {
-                    return res.status(401).send({ "message": "User doesn't exist!" });
+                    await db_connection.query(`UNLOCK TABLES`);
+                    return res.status(401).send({ "message": "Invalid Email." });
                 }
 
-                // Check if the user's account is deactivated
-                if (user[0].isActive === '0') {
-                    return res.status(401).send({ "message": "User's account is deactivated!" });
-                }
+                await db_connection.query(`UPDATE USERDATA SET password = ? WHERE email = ?`, [req.body.password, req.email]);
 
-                // Check if the OTP is valid
-                let [checkOTP] = await db_connection.query(`DELETE from otpTable WHERE email = ? AND otp = ?`, [req.email, req.body.otp]);
+                await db_connection.query(`UNLOCK TABLES`);
 
-                if (checkOTP.affectedRows === 0) {
-                    return res.status(400).send({ "message": "Invalid OTP!" });
-                }
+                const secret_token = await webTokenGenerator({
+                    "email": req.body.email,
+                    "userRole": user[0].userRole,
+                });
 
-                // Check if the password provided matches the stored password
-                const passwordMatch = crypto.timingSafeEqual(Buffer.from(req.password), Buffer.from(user[0].password, 'hex'));
+                return res.status(201).send({
+                    "message": "First time login! OTP sent to email.",
+                    "SECRET_TOKEN": secret_token,
+                    "email": user[0].email,
+                    "profName": user[0].profName,
+                });
 
-                if (passwordMatch) {
-                    // Generate and send the authentication token
-                    const secret_token = await webTokenGenerator({
-                        "userEmail": req.email,
-                        "userRole": user[0].userRole,
-                    });
-
-                    // Return user information based on the role
-                    if (user[0].userRole === '0') {
-                        return res.status(200).send({
-                            "message": "Professor logged in!",
-                            "SECRET_TOKEN": secret_token,
-                            "profName": user[0].profName,
-                            "email": user[0].email,
-                            "userRole": user[0].userRole,
-                            "profID": user[0].profID,
-                            "isActive": user[0].isActive,
-                        });
-                    } else if (user[0].userRole === '1') {
-                        return res.status(200).send({
-                            "message": "Admin logged in!",
-                            "SECRET_TOKEN": secret_token,
-                            "adminName": user[0].adminName,
-                            "email": user[0].email,
-                            "userRole": user[0].userRole,
-                            "adminID": user[0].adminID,
-                            "isActive": user[0].isActive,
-                        });
-                    }
-                } else {
-                    return res.status(401).send({ "message": "Invalid email or password." });
-                }
             } catch (err) {
                 console.log(err);
                 const time = new Date();
                 fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - loginVerify - ${err}\n`);
                 return res.status(500).send({ "message": "Internal Server Error." });
             } finally {
+                await db_connection.query(`UNLOCK TABLES`);
                 db_connection.release();
             }
-        },
+        }
     ],
 
     forgotPassword: async (req, res) => {
@@ -863,12 +895,19 @@ module.exports = {
             const { RollNo, StdName, classID } = req.body;
 
             db_connection = await db.promise().getConnection();
-
+            console.log("Request ")
             // Validate the presence of required fields
 
             // Ensure all required fields are defined
             if (!RollNo || !StdName || !classID) {
                 return res.status(400).json({ error: 'All fields are required' });
+            }
+            const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
+            if (pattern.test(RollNo)) {
+                // Roll number is in the correct format
+            } else {
+                // Roll number format is incorrect
+                res.status(400).json({ error: 'Invalid roll number format' });
             }
 
             // Lock the necessary tables to prevent concurrent writes
@@ -1415,7 +1454,8 @@ module.exports = {
         /*
             queries {
                 userRole: <userRole>
-                id: <slotID>
+                classID: <class id>
+                PeriodNo: < period no>
             }
         */
 
@@ -1428,15 +1468,17 @@ module.exports = {
             await db_connection.query('LOCK TABLES slots WRITE');
 
             const currentUserRole = req.query.userRole;
-            const slotID = req.query.id;
+            const classID = req.query.classID;
+            const PeriodNo = req.query.PeriodNo;
 
             if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete slots.' });
             }
-
+            const [s] = await db_connection.query('SELECT slotID FROM slots WHERE ClassID = ? AND PeriodNo = ?', [classID, PeriodNo]);
+            const slotID = s[0].slotID
             // Start a transaction
             await db_connection.query('START TRANSACTION');
-
+            await db_connection.query('DELETE FROM attendance WHERE slotID = ?', [slotID]);
             const [result] = await db_connection.query('DELETE FROM slots WHERE slotID = ?', [slotID]);
 
             if (result.affectedRows === 1) {
@@ -1461,7 +1503,282 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    }
+    },
 
     // -------------------Slot Operations Ends------------------------------
+
+    // -------------------Course Operations Starts--------------------------
+
+    createCourse: async (req, res) => {
+        /*
+            queries {
+                userRole: <userRole>
+            }
+            JSON
+            {
+                "courseName": "<courseName>"
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES course WRITE');
+
+            const currentUserRole = req.query.userRole;
+
+            if (currentUserRole != 0 && currentUserRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create courses.' });
+            }
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const { courseName } = req.body;
+
+            const [result] = await db_connection.query('INSERT INTO course (courseName, isActive) VALUES (?, ?)', [courseName, 1]);
+
+            if (result.affectedRows === 1) {
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+                res.status(201).json({ message: 'Course created successfully' });
+            } else {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                res.status(500).json({ error: 'Failed to create course' });
+            }
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - createCourse - ${error}\n`);
+            res.status(500).json({ error: 'Failed to create course' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
+
+    deleteCourse: async (req, res) => {
+        /*
+            queries {
+                userRole: <userRole>
+                id: <courseID>
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES course WRITE');
+
+            const currentUserRole = req.query.userRole;
+            const courseID = req.query.id;
+
+            if (currentUserRole != 0 && currentUserRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete courses.' });
+            }
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const [result] = await db_connection.query('UPDATE course SET isActive = ? WHERE courseID = ?', [0, courseID]);
+
+            if (result.affectedRows === 1) {
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+                res.json({ message: 'Course deleted successfully' });
+            } else {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                res.status(404).json({ error: 'Course not found' });
+            }
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteCourse - ${error}\n`);
+            res.status(500).json({ error: 'Failed to delete course' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
+
+    // -------------------Course Operations Ends----------------------------
+
+    // -------------------Attendance Operations Starts--------------------------
+
+    addAttendance: async (req, res) => {
+        /*
+            JSON
+            {
+                "RollNo": "<RollNo>",
+                "attdStatus": "<attdStatus>",
+                "timestamp": "<timestamp>",
+                "classID: <class id>",
+                "PeriodNo: < period no>"
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES attendance WRITE');
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const { RollNo, attdStatus, timestamp, classID, PeriodNo } = req.body;
+
+            const [s] = await db_connection.query('SELECT slotID FROM slots WHERE ClassID = ? AND PeriodNo = ?', [classID, PeriodNo]);
+            const slotID = s[0].slotID
+
+            // Validate attdStatus
+            const validStatusValues = ['0', '1', '2', '3', '4'];
+            if (!validStatusValues.includes(attdStatus)) {
+                return res.status(400).json({ error: 'Invalid attendance status value' });
+            }
+
+            const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES (?, ?, ?, ?)', [RollNo, attdStatus, timestamp, slotID]);
+
+            if (result.affectedRows === 1) {
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+                res.status(201).json({ message: 'Attendance recorded successfully' });
+            } else {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                res.status(500).json({ error: 'Failed to record attendance' });
+            }
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addAttendance - ${error}\n`);
+            res.status(500).json({ error: 'Failed to record attendance' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
+
+    getAttendanceForSlot: async (req, res) => {
+        /*
+            queries {
+                classID: <class id>
+                PeriodNo: < period no>       
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const classID = req.query.classID;
+            const PeriodNo = req.query.PeriodNo;
+            const Date = req.query.date;
+            const [s] = await db_connection.query('SELECT slotID FROM slots WHERE ClassID = ? AND PeriodNo = ?', [classID, PeriodNo]);
+            const slotID = s[0].slotID;
+
+            const [rows] = await db_connection.query('SELECT (RollNO, attstatus) FROM attendance WHERE slotID = ? and ', [slotID]);
+
+            // Commit the transaction
+            await db_connection.query('COMMIT');
+
+            res.json(rows);
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - getAttendanceForSlot - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch attendance' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
+
+    updateAttendanceStatus: async (req, res) => {
+        /*
+            JSON
+            {
+                "RollNo": "<RollNo>",
+                "timestamp": "<timestamp>",
+                "attdStatus": "<attdStatus>"
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES attendance WRITE');
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const { RollNo, timestamp, attdStatus } = req.body;
+
+            // Validate attdStatus
+            const validStatusValues = ['0', '1', '2', '3', '4'];
+            if (!validStatusValues.includes(attdStatus)) {
+                return res.status(400).json({ error: 'Invalid attendance status value' });
+            }
+
+            const [result] = await db_connection.query('UPDATE attendance SET attdStatus = ? WHERE RollNo = ? AND timestamp = ?', [attdStatus, RollNo, timestamp]);
+
+            if (result.affectedRows === 1) {
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+                res.json({ message: 'Attendance status updated successfully' });
+            } else {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                res.status(404).json({ error: 'Attendance record not found' });
+            }
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - updateAttendanceStatus - ${error}\n`);
+            res.status(500).json({ error: 'Failed to update attendance status' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
+
+    // -------------------Attendance Operations Ends----------------------------
+
 };

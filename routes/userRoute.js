@@ -6,8 +6,8 @@ const userWebController = require('../controller/userController');
 router.get('/test', userWebController.test);
 
 // User authentication routes
-router.post('/login', userWebController.userLogin);
-router.post('/loginVerify', userWebController.loginVerify);
+router.post('/login', userWebController.userLogin); //done
+router.post('/loginVerify', userWebController.loginVerify); 
 
 // Admin routes
 router.post('/add-admin', userWebController.addAdmin); //done
@@ -40,6 +40,8 @@ router.delete('/delete-class/:id', userWebController.deleteClass); //done
 
 // Slot routes
 router.post('/add-slots', userWebController.createSlots); //done
-router.delete('/delete-slot/:id', userWebController.deleteSlot); //error
+router.delete('/delete-slot/:id', userWebController.deleteSlot); //done
+
+router.post('/add-attendance', userWebController.addAttendance); //done
 
 module.exports = router;

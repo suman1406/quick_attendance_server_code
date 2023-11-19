@@ -4,12 +4,13 @@
 -- attdStatus: 0 -> Absent, 1 -> Present, 2 -> OD, 3 -> ML, 4 -> Other
 -- Table 1: Professors Table
 -- userRole: 0 -> professor, 1 -> admin.
-CREATE TABLE course (
+CREATE TABLE IF NOT EXISTS course (
     courseID INT AUTO_INCREMENT PRIMARY KEY,
     courseName VARCHAR(255) NOT NULL,
+    isActive CHAR(1) NOT NULL DEFAULT '1',
     UNIQUE (courseName)
 );
-CREATE TABLE USERDATA (
+CREATE TABLE IF NOT EXISTS USERDATA (
     profID INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -17,7 +18,11 @@ CREATE TABLE USERDATA (
     userRole CHAR(1) NOT NULL,
     isActive CHAR(1) NOT NULL DEFAULT '1',
     courseID INT,
-    FOREIGN KEY (courseID) REFERENCES course(courseID);
+    classID INT,
+    CONSTRAINT chk_user_course
+        CHECK ((userRole = '0' AND courseID IS NOT NULL AND classID IS NOT NULL) OR (userRole = '1' AND classID IS NULL)),
+    FOREIGN KEY (courseID) REFERENCES course(courseID),
+    FOREIGN KEY (classID) REFERENCES class(classID)
 );
 -- This will act like a temporary table. Once the student verifies their email, the data will be moved to studentData table.
 CREATE TABLE USERREGISTER (
@@ -32,40 +37,43 @@ CREATE TABLE USERREGISTER (
 -- Section: A, B, C, D, E, F
 -- batchYear: 20XX -> Passing out year
 CREATE TABLE studentData (
-    StdID INT AUTO_INCREMENT PRIMARY KEY,
+    -- StdID INT AUTO_INCREMENT PRIMARY KEY,
     RollNo VARCHAR(20) NOT NULL UNIQUE,
     StdName VARCHAR(255) NOT NULL,
-    batchYear INT NOT NULL,
-    Dept VARCHAR(255) NOT NULL,
-    Section VARCHAR(10) NOT NULL,
-    isActive CHAR(1) NOT NULL DEFAULT '1'
+    classID INT,
+    isActive CHAR(1) NOT NULL DEFAULT '1',
+    FOREIGN KEY (classID) REFERENCES class(classID)
 );
 -- Table 3: Class Table
-CREATE TABLE class (
+CREATE TABLE IF NOT EXISTS class (
     classID INT AUTO_INCREMENT PRIMARY KEY,
     batchYear INT NOT NULL,
     Dept VARCHAR(255) NOT NULL,
     Section VARCHAR(10) NOT NULL,
     profID INT,
+    courseID INT,
     Semester INT NOT NULL,
+    isActive CHAR(1) NOT NULL DEFAULT '1',
+    unique index(classID),
     FOREIGN KEY (profID) REFERENCES USERDATA(profID),
-    FOREIGN KEY (batchYear, Dept, Section) REFERENCES studentData(batchYear, Dept, Section)
+    FOREIGN KEY (courseID) REFERENCES course(courseID)
 );
 -- Table 4
 CREATE TABLE Slots (
     slotID INT AUTO_INCREMENT PRIMARY KEY,
     classID INT,
     periodNo INT NOT NULL,
+    isActive CHAR(1) NOT NULL DEFAULT '1',
     FOREIGN KEY (classID) REFERENCES class(classID)
 );
 -- Table 5
-CREATE TABLE attendance (
-    StdID INT,
-    attdStatus VARCHAR(20) NOT NULL,
+CREATE TABLE if not exists attendance (
+    RollNo VARCHAR(20),
+    attdStatus CHAR(1) NOT NULL,
     timestamp TIMESTAMP NOT NULL,
     slotID INT NOT NULL,
-    PRIMARY KEY (StdID, timestamp),
-    FOREIGN KEY (StdID) REFERENCES studentData(StdID),
+    PRIMARY KEY (RollNo, timestamp),
+    FOREIGN KEY (RollNo) REFERENCES studentData(RollNo),
     FOREIGN KEY (slotID) REFERENCES Slots(slotID)
 );
 /*

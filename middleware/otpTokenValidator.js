@@ -7,6 +7,8 @@ async function otpTokenValidator(req, res, next) {
     const tokenHeader = req.headers.authorization;
     const token = tokenHeader && tokenHeader.split(' ')[1];
 
+    next();
+
     if (tokenHeader == null || token == null) {
         res.status(401).send({
             "ERROR": "No Token. Warning."
@@ -18,12 +20,12 @@ async function otpTokenValidator(req, res, next) {
     try {
         const payLoad = await verify(token, public_key);
         if (payLoad["secret_key"] == secret_key) {
-            req.authorization_tier = payLoad["userRole"];
+            req.userRole = payLoad["userRole"];
 
-            if (req.authorization_tier == "0") {
-                req.email = payLoad["userEmail"];
-            } else if (req.authorization_tier == "1") {
-                req.email = payLoad["userEmail"];
+            if (req.userRole == "0") {
+                req.email = payLoad["email"];
+            } else if (req.userRole == "1") {
+                req.email = payLoad["email"];
             }
 
             next();

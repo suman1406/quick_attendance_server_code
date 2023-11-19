@@ -18,12 +18,12 @@ const TEMPLATE_OTP = (otp, userName) => {
     <body>
         <p>Dear ${userName},</p>
         <br />
-        <p>Thank you for registering with Amrita Placement Tracker. Please use the following OTP to verify your account.</p>
+        <p>Thank you for registering with Amrita Quick Attendance App. Please use the following OTP to verify your account.</p>
         <br />
         <h1>${otp}</h1>
         <br />
         <p>Regards,</p>
-        <p>Amrita Placement Tracker</p>
+        <p>Amrita Quick Attendance App</p>
     </body>
 
     </html>`;

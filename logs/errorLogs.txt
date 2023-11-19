@@ -3,3 +3,11 @@
 2023-11-16T04:47:29.216Z - userLogin - RangeError: Input buffers must have the same byte length
 2023-11-16T04:50:11.222Z - userLogin - RangeError: Input buffers must have the same byte length
 2023-11-16T05:26:23.836Z - userLogin - RangeError: Input buffers must have the same byte length
+2023-11-18T03:37:08.524Z - userLogin - Error: Table 'quick_attendance.userdata' doesn't exist
+2023-11-18T03:40:04.581Z - userLogin - Error: Table 'USERREGISTER' was not locked with LOCK TABLES
+2023-11-18T03:41:35.740Z - userLogin - ReferenceError: sendOtpEmail is not defined
+2023-11-18T12:15:25.777Z - userLogin - ReferenceError: sendOtpEmail is not defined
+2023-11-18T13:25:51.886Z - userLogin - Error: Table 'managementRegister' was not locked with LOCK TABLES
+2023-11-18T17:25:37.069Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''441837'' at line 1
+2023-11-18T17:26:20.007Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''441837'' at line 1
+2023-11-18T17:49:18.104Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''275752'' at line 1

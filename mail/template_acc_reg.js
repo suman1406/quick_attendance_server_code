@@ -1,4 +1,4 @@
-const TEMPLATE_OFFICIAL_CREATED = (managerEmail, managerName, managerPassword) => {
+const TEMPLATE_OFFICIAL_CREATED = (email, profName, password) => {
     return `<!DOCTYPE html>
     <html lang="en">
 
@@ -16,13 +16,13 @@ const TEMPLATE_OFFICIAL_CREATED = (managerEmail, managerName, managerPassword) =
     </head>
 
     <body>
-        <p>Dear ${managerName},</p>
+        <p>Dear ${profName},</p>
         <br />
         <p>Greetings from Amrita Quick Attendance App. Welcome!</p>
         <p>You have been registered by the admin to the app. Here is your credentials. Head to the login page to continue to login.</p>
         <br />
-        <p>EmailID: ${managerEmail}</p>
-        <p>Password: ${managerPassword}</p>
+        <p>EmailID: ${email}</p>
+        <p>Password: ${password}</p>
         <br />
         <p>Regards,</p>
         <p>Amrita Quick Attendance</p>
