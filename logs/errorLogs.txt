@@ -11,3 +11,29 @@
 2023-11-18T17:25:37.069Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''441837'' at line 1
 2023-11-18T17:26:20.007Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''441837'' at line 1
 2023-11-18T17:49:18.104Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''275752'' at line 1
+2023-11-20T12:52:27.211Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''246311'' at line 1
+2023-11-20T12:53:46.489Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''295205'' at line 1
+2023-11-20T13:00:19.628Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''295205'' at line 1
+2023-11-20T13:48:05.980Z - loginVerify - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''304836'' at line 1
+2023-11-20T16:57:13.387Z - forgotPassword - ReferenceError: userRole is not defined
+2023-11-20T16:58:21.832Z - forgotPassword - ReferenceError: profName is not defined
+2023-11-20T18:52:35.079Z - editUser - Error: Truncated incorrect DOUBLE value: 'prof2@example.com'
+2023-11-20T18:54:21.360Z - editUser - Error: Truncated incorrect DOUBLE value: 'prof2@example.com'
+2023-11-20T18:57:50.972Z - editUser - TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+2023-11-20T18:58:36.522Z - editUser - TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+2023-11-20T18:58:59.305Z - editUser - TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+2023-11-20T19:00:06.704Z - editUser - ReferenceError: userID is not defined
+2023-11-20T19:06:35.360Z - getAllUsers - Error: Table 'u' was not locked with LOCK TABLES
+2023-11-20T19:07:17.987Z - getAllUsers - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'course READ' at line 1
+2023-11-20T19:07:28.362Z - getAllUsers - Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'and course READ' at line 1
+2023-11-20T19:07:54.962Z - getAllUsers - Error: Table 'u' was not locked with LOCK TABLES
+2023-11-20T19:09:56.323Z - getAllUsers - Error: Table 'USERDATA' was not locked with LOCK TABLES
+2023-11-20T19:12:46.554Z - getAllUsers - Error: Table 'USERDATA' was not locked with LOCK TABLES
+2023-11-20T19:13:11.732Z - getAllUsers - Error: Table 'u' was not locked with LOCK TABLES
+2023-11-20T19:37:16.952Z - addStudent - Error: Table 'course' was not locked with LOCK TABLES
+2023-11-20T19:56:44.783Z - allStudents - Error: Table 's' was not locked with LOCK TABLES
+2023-11-20T20:01:52.053Z - addStudents - Error: Column count doesn't match value count at row 1
+2023-11-20T20:03:45.745Z - addStudents - Error: Column count doesn't match value count at row 1
+2023-11-20T20:05:06.900Z - addStudents - Error: Column count doesn't match value count at row 1
+2023-11-20T20:08:26.965Z - addStudents - Error: Column count doesn't match value count at row 1
+2023-11-20T20:15:24.880Z - addStudents - ReferenceError: courseResult is not defined

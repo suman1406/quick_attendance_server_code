@@ -7,8 +7,6 @@ async function otpTokenValidator(req, res, next) {
     const tokenHeader = req.headers.authorization;
     const token = tokenHeader && tokenHeader.split(' ')[1];
 
-    next();
-
     if (tokenHeader == null || token == null) {
         res.status(401).send({
             "ERROR": "No Token. Warning."
