@@ -15,13 +15,13 @@ CREATE TABLE IF NOT EXISTS course (
     UNIQUE (courseName)
 );
 -- Create the USERDATA table
-CREATE TABLE IF NOT EXISTS USERDATA (   
+CREATE TABLE IF NOT EXISTS USERDATA (
     profID INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     profName VARCHAR(255) NOT NULL,
     userRole CHAR(1) NOT NULL,
-    isActive CHAR(1) NOT NULL DEFAULT '1',
+    isActive CHAR(1) NOT NULL DEFAULT '2',
     courseID INT,
     FOREIGN KEY (courseID) REFERENCES course(courseID)
 );
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS ProfessorClass (
 );
 -- Create the studentData table
 CREATE TABLE IF NOT EXISTS studentData (
-    RollNo VARCHAR(20) NOT NULL UNIQUE,
+    RollNo VARCHAR(20) PRIMARY KEY,
     StdName VARCHAR(255) NOT NULL,
     classID INT,
     isActive CHAR(1) NOT NULL DEFAULT '1',
@@ -78,7 +78,6 @@ CREATE TABLE IF NOT EXISTS USERREGISTER (
     createdAt TIMESTAMP NOT NULL,
     PRIMARY KEY (id)
 );
-
 -- Insert sample data into the course table
 INSERT INTO course (courseName)
 VALUES ('Mathematics'),

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS course (
 );
 -- Table 2: Users Table
 -- userRole: 0 -> professor, 1 -> admin
--- isActive: 1 -> Active, 0 -> Deactivated.
+-- isActive: 1 -> Active, 0 -> Deactivated, 2 -> Waitlist.
 -- attdStatus: 0 -> Absent, 1 -> Present, 2 -> OD, 3 -> ML, 4 -> Other
 -- userRole: 0 -> professor, 1 -> admin.
 CREATE TABLE IF NOT EXISTS USERDATA (
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS USERDATA (
     password VARCHAR(255) NOT NULL,
     profName VARCHAR(255) NOT NULL,
     userRole CHAR(1) NOT NULL,
-    isActive CHAR(1) NOT NULL DEFAULT '1',
+    isActive CHAR(1) NOT NULL DEFAULT '2',
     courseID INT,
     FOREIGN KEY (courseID) REFERENCES course(courseID)
 );
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS ProfessorClass (
 -- Section: A, B, C, D, E, F
 -- batchYear: 20XX -> Passing out year
 CREATE TABLE IF NOT EXISTS studentData (
-    RollNo VARCHAR(20) NOT NULL UNIQUE,
+    RollNo VARCHAR(20) PRIMARY KEY,
     StdName VARCHAR(255) NOT NULL,
     classID INT,
     isActive CHAR(1) NOT NULL DEFAULT '1',
