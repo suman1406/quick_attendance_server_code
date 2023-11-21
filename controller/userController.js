@@ -6,8 +6,7 @@ const otpTokenGenerator = require('../middleware/otpTokenGenerator');
 const [otpTokenValidator, resetPasswordValidator] = require('../middleware/otpTokenValidator');
 
 const generateOTP = require("../middleware/otpGenerator");
-const addUser = require("../middleware/crud");
-const deleteMember = require("../middleware/crud");
+
 const passwordGenerator = require('secure-random-password');
 
 const crypto = require('crypto');
@@ -430,13 +429,13 @@ module.exports = {
         let db_connection;
 
         try {
-            const { userName, userEmail, courseName } = req.body;
+            const { userName, newUserEmail, courseName } = req.body;
 
             if (
-                req.body.userEmail === null ||
-                req.body.userEmail === undefined ||
-                req.body.userEmail === "" ||
-                !validator.isEmail(req.body.userEmail) ||
+                req.body.newUserEmail === null ||
+                req.body.newUserEmail === undefined ||
+                req.body.newUserEmail === "" ||
+                !validator.isEmail(req.body.newUserEmail) ||
                 req.body.userName === null ||
                 req.body.userName === undefined ||
                 req.body.userName === "" ||
@@ -450,7 +449,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Ensure all required fields are defined
-            if (!userEmail || !userName || !courseName) {
+            if (!newUserEmail || !userName || !courseName) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
 
@@ -474,7 +473,7 @@ module.exports = {
             // Check if the user is already registered
             let [existingUser] = await db_connection.query(
                 'SELECT * from USERDATA WHERE email = ?',
-                [userEmail]
+                [newUserEmail]
             );
 
             if (existingUser.length > 0) {
@@ -492,12 +491,12 @@ module.exports = {
             const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
 
             // Email the password to the user.
-            mailer.officialCreated(userName, userEmail, hashedPassword);
+            mailer.officialCreated(userName, newUserEmail, hashedPassword);
 
             // Insert the user into the USERDATA table with faculty role ('0' for faculty)
             await db_connection.query(
                 'INSERT INTO USERDATA (profName, email, password, userRole, courseID, isActive) VALUES (?, ?, ?, ?, ?, "2")',
-                [userName, userEmail, hashedPassword, '0', courseResult[0].courseID]
+                [userName, newUserEmail, hashedPassword, '0', courseResult[0].courseID]
             );
 
             // Unlock the tables
@@ -521,107 +520,109 @@ module.exports = {
     },
     ],
 
-    addAdmin: [webTokenValidator, async (req, res) => {
-        let db_connection;
+    addAdmin: [
+        webTokenValidator,
+        async (req, res) => {
+            let db_connection;
 
-        try {
-            const { userName, userEmail, courseName } = req.body;
+            try {
+                const { userName, newUserEmail, courseName } = req.body;
 
-            if (
-                req.body.userEmail === null ||
-                req.body.userEmail === undefined ||
-                req.body.userEmail === "" ||
-                !validator.isEmail(req.body.userEmail) ||
-                req.body.userName === null ||
-                req.body.userName === undefined ||
-                req.body.userName === "" ||
-                req.body.courseName === null ||
-                req.body.courseName === undefined ||
-                req.body.courseName === ""
-            ) {
-                return res.status(400).send({ "message": "Missing details." });
-            }
+                if (
+                    req.body.newUserEmail === null ||
+                    req.body.newUserEmail === undefined ||
+                    req.body.newUserEmail === "" ||
+                    !validator.isEmail(req.body.newUserEmail) ||
+                    req.body.userName === null ||
+                    req.body.userName === undefined ||
+                    req.body.userName === "" ||
+                    req.body.courseName === null ||
+                    req.body.courseName === undefined ||
+                    req.body.courseName === ""
+                ) {
+                    return res.status(400).send({ "message": "Missing details." });
+                }
 
-            db_connection = await db.promise().getConnection();
+                db_connection = await db.promise().getConnection();
 
-            // Ensure all required fields are defined
-            if (!userEmail || !userName || !courseName) {
-                return res.status(400).json({ error: 'All fields are required' });
-            }
+                // Ensure all required fields are defined
+                if (!newUserEmail || !userName || !courseName) {
+                    return res.status(400).json({ error: 'All fields are required' });
+                }
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES USERDATA WRITE, course READ');
+                // Lock the necessary tables to prevent concurrent writes
+                await db_connection.query('LOCK TABLES USERDATA WRITE, course READ');
 
-            // Fetch courseID based on courseName
-            const [courseResult] = await db_connection.query(
-                'SELECT courseID FROM course WHERE courseName = ?',
-                [courseName]
-            );
+                // Fetch courseID based on courseName
+                const [courseResult] = await db_connection.query(
+                    'SELECT courseID FROM course WHERE courseName = ?',
+                    [courseName]
+                );
 
-            if (courseResult.length === 0) {
+                if (courseResult.length === 0) {
+                    await db_connection.query('UNLOCK TABLES');
+                    return res.status(400).send({ "message": "Course not found!" });
+                }
+
+                // Check if the user is actually an admin
+                // let [admin] = await db_connection.query(
+                //     'SELECT * from USERDATA WHERE email = ? AND userRole = ?',
+                //     [newUserEmail, '1']
+                // );
+
+                // if (admin.length === 0) {
+                //     await db_connection.query('UNLOCK TABLES');
+                //     return res.status(401).send({ "message": "Access Restricted!" });
+                // }
+
+                // Check if the user is already registered
+                let [existingUser] = await db_connection.query(
+                    'SELECT * from USERDATA WHERE email = ?',
+                    [newUserEmail]
+                );
+
+                if (existingUser.length > 0) {
+                    await db_connection.query('UNLOCK TABLES');
+                    return res.status(400).send({ "message": "User already registered!" });
+                }
+
+                // Generate a random password for the manager.
+                const memberPassword = passwordGenerator.randomPassword({
+                    length: 8,
+                    characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
+                });
+
+                const salt = crypto.randomBytes(16).toString('hex');
+                const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
+
+                // Email the password to the user.
+                mailer.officialCreated(userName, newUserEmail, hashedPassword);
+
+                // Insert the user into the USERDATA table
+                await db_connection.query(
+                    'INSERT INTO USERDATA (profName, email, password, userRole, courseID, isActive) VALUES (?, ?, ?, ?, ?, "2")',
+                    [userName, newUserEmail, hashedPassword, '1', courseResult[0].courseID]
+                );
+
+                // Unlock the tables
                 await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "Course not found!" });
-            }
 
-            // Check if the user is actually an admin
-            // let [admin] = await db_connection.query(
-            //     'SELECT * from USERDATA WHERE email = ? AND userRole = ?',
-            //     [userEmail, '1']
-            // );
-
-            // if (admin.length === 0) {
-            //     await db_connection.query('UNLOCK TABLES');
-            //     return res.status(401).send({ "message": "Access Restricted!" });
-            // }
-
-            // Check if the user is already registered
-            let [existingUser] = await db_connection.query(
-                'SELECT * from USERDATA WHERE email = ?',
-                [userEmail]
-            );
-
-            if (existingUser.length > 0) {
+                // Return success response
+                return res.status(200).send({ "message": "Admin registered!" });
+            } catch (err) {
+                console.error(err);
+                const time = new Date();
+                fs.appendFileSync(
+                    'logs/errorLogs.txt',
+                    `${time.toISOString()} - addAdmin - ${err}\n`
+                );
+                return res.status(500).send({ "message": "Internal Server Error." });
+            } finally {
+                // Unlock the tables and release the database connection
                 await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "User already registered!" });
+                db_connection.release();
             }
-
-            // Generate a random password for the manager.
-            const memberPassword = passwordGenerator.randomPassword({
-                length: 8,
-                characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
-            });
-
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
-
-            // Email the password to the user.
-            mailer.officialCreated(userName, userEmail, hashedPassword);
-
-            // Insert the user into the USERDATA table
-            await db_connection.query(
-                'INSERT INTO USERDATA (profName, email, password, userRole, courseID, isActive) VALUES (?, ?, ?, ?, ?, "2")',
-                [userName, userEmail, hashedPassword, '1', courseResult[0].courseID]
-            );
-
-            // Unlock the tables
-            await db_connection.query('UNLOCK TABLES');
-
-            // Return success response
-            return res.status(200).send({ "message": "Admin registered!" });
-        } catch (err) {
-            console.error(err);
-            const time = new Date();
-            fs.appendFileSync(
-                'logs/errorLogs.txt',
-                `${time.toISOString()} - addAdmin - ${err}\n`
-            );
-            return res.status(500).send({ "message": "Internal Server Error." });
-        } finally {
-            // Unlock the tables and release the database connection
-            await db_connection.query('UNLOCK TABLES');
-            db_connection.release();
-        }
-    },
+        },
     ],
 
     // -----------------------User Operations End---------------------------
@@ -905,68 +906,7 @@ module.exports = {
         }
     },
 
-    resetPassword: async (req, res) => {
-        /*
-        JSON
-        {
-            "email": "<email_id>",
-            "newPassword": "<new_password>"
-        }
-        */
-        if (
-            req.body.userEmail === null ||
-            req.body.userEmail === undefined ||
-            req.body.userEmail === "" ||
-            !validator.isEmail(req.body.userEmail) ||
-            req.body.newPassword === null ||
-            req.body.newPassword === undefined ||
-            req.body.newPassword === ""
-        ) {
-            return res.status(400).send({ message: "Missing details." });
-        }
-
-        let db_connection = await db.promise().getConnection();
-
-        try {
-            await db_connection.query(`LOCK TABLES USERDATA WRITE`);
-            let [professor] = await db_connection.query(
-                `SELECT profName, isActive FROM USERDATA WHERE email = ?`,
-                [req.body.userEmail]
-            );
-
-            if (professor.length === 0) {
-                await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ message: "Professor doesn't exist!" });
-            }
-
-            if (professor[0].isActive === "0") {
-                return res.status(401).send({
-                    message: "Your Account has been deactivated. Check your email for further instructions.",
-                });
-            }
-
-            await db_connection.query(
-                `UPDATE USERDATA SET password = ? WHERE email = ?`,
-                [req.body.newPassword, req.body.userEmail]
-            );
-            await db_connection.query(`UNLOCK TABLES`);
-
-            return res.status(200).send({ message: "Password reset successful." });
-        } catch (err) {
-            console.log(err);
-            const time = new Date();
-            fs.appendFileSync(
-                "logs/errorLogs.txt",
-                `${time.toISOString()} - resetPassword - ${err}\n`
-            );
-            return res.status(500).send({ message: "Internal Server Error." });
-        } finally {
-            await db_connection.query(`UNLOCK TABLES`);
-            db_connection.release();
-        }
-    },
-
-    resetVerify: async (req, res) => {
+    resetVerify: [otpTokenValidator, async (req, res) => {
         /*
         JSON
         {
@@ -1016,7 +956,19 @@ module.exports = {
             }
 
             await db_connection.query(`UNLOCK TABLES`);
-            return res.status(200).send({ message: "OTP verification successful." });
+
+            const secret_token = await webTokenGenerator({
+                "email": professor[0].profEmail,
+                "userRole": professor[0].userRole,
+            });
+
+            return res.status(200).send({
+                "message": "OTP verification successful.",
+                "SECRET_TOKEN": secret_token,
+                "email": professor[0].profEmail,
+                "profName": professor[0].profName,
+            });
+
         } catch (err) {
             console.log(err);
             const time = new Date();
@@ -1029,7 +981,79 @@ module.exports = {
             await db_connection.query(`UNLOCK TABLES`);
             db_connection.release();
         }
-    },
+    },],
+
+    resetPassword: [webTokenValidator, async (req, res) => {
+        /*
+        JSON
+        {
+            "email": "<email_id>",
+            "newPassword": "<new_password>"
+        }
+        */
+        if (
+            req.body.userEmail === null ||
+            req.body.userEmail === undefined ||
+            req.body.userEmail === "" ||
+            !validator.isEmail(req.body.userEmail) ||
+            req.body.newPassword === null ||
+            req.body.newPassword === undefined ||
+            req.body.newPassword === ""
+        ) {
+            return res.status(400).send({ message: "Missing details." });
+        }
+
+        let db_connection = await db.promise().getConnection();
+
+        try {
+            await db_connection.query(`LOCK TABLES USERDATA WRITE`);
+            let [professor] = await db_connection.query(
+                `SELECT profName, isActive FROM USERDATA WHERE email = ?`,
+                [req.body.userEmail]
+            );
+
+            if (professor.length === 0) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(401).send({ message: "Professor doesn't exist!" });
+            }
+
+            if (professor[0].isActive === "0") {
+                return res.status(401).send({
+                    message: "Your Account has been deactivated. Check your email for further instructions.",
+                });
+            }
+
+            await db_connection.query(
+                `UPDATE USERDATA SET password = ? WHERE email = ?`,
+                [req.body.newPassword, req.body.userEmail]
+            );
+            await db_connection.query(`UNLOCK TABLES`);
+
+            const secret_token = await webTokenGenerator({
+                "email": professor[0].profEmail,
+                "userRole": professor[0].userRole,
+            });
+
+            return res.status(200).send({
+                "message": "Password reset successful.",
+                "SECRET_TOKEN": secret_token,
+                "email": professor[0].profEmail,
+                "profName": professor[0].profName,
+            });
+
+        } catch (err) {
+            console.log(err);
+            const time = new Date();
+            fs.appendFileSync(
+                "logs/errorLogs.txt",
+                `${time.toISOString()} - resetPassword - ${err}\n`
+            );
+            return res.status(500).send({ message: "Internal Server Error." });
+        } finally {
+            await db_connection.query(`UNLOCK TABLES`);
+            db_connection.release();
+        }
+    },],
 
     // -----------------------Authentication Operations End-----------------
 
@@ -1545,11 +1569,11 @@ module.exports = {
 
     // -------------------Class Operations Starts------------------------------
 
-    createClass: async (req, res) => {
+    createClass: [webTokenValidator, async (req, res) => {
         // Create a class
         /*
             queries {
-                userRole: <userRole>
+                currentUserEmail: <currentUserEmail>
             }
             JSON
             {
@@ -1568,10 +1592,22 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES class WRITE, course READ, ProfessorClass WRITE');
+            await db_connection.query('LOCK TABLES class WRITE, course READ, ProfessorClass WRITE, USERDATA READ');
 
-            const currentUserRole = req.query.userRole;
             const isActive = '1'; // Assuming isActive is a CHAR(1) field
+
+            const currentUserEmail = req.query.currentUserEmail; // Updated: Extract email from request body
+
+            // Find the current user's role based on email
+            const [userRoleResult] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+
+            if (userRoleResult.length === 0) {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                return res.status(400).json({ error: 'User not found' });
+            }
+
+            const currentUserRole = userRoleResult[0].userRole;
 
             if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can create classes.' });
@@ -1593,8 +1629,16 @@ module.exports = {
 
             const courseID = courseResult[0].courseID;
 
-            // Find profID based on profEmail
-            const [profResult] = await db_connection.query('SELECT profID FROM USERDATA WHERE email = ? AND userRole = \'0\' AND isActive = \'1\'', [profEmail]);
+            let profResult;
+            console.log(currentUserRole)
+            if (currentUserRole === '1') {
+                [profResult] = await db_connection.query('SELECT profID FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [profEmail, 1, 1]);
+            } else if (currentUserRole === '0') {
+                // Find profID based on profEmail
+                [profResult] = await db_connection.query('SELECT profID FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [currentUserEmail, 0, 1]);
+            }
+
+            console.log('#########' + profResult)
 
             if (profResult.length === 0) {
                 // Rollback the transaction
@@ -1641,40 +1685,48 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
-    myClasses: async (req, res) => {
-        // Fetch classes for a professor
+    myClasses: [webTokenValidator, async (req, res) => {
+        // Fetch classes for a professor or admin
         /*
             queries {
-                userRole: <userRole>
-                email: <profEmail>
+                currentUserEmail: <currentUserEmail>
             */
-
         let db_connection;
 
         try {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES ProfessorClass READ, class READ, course READ');
+            await db_connection.query('LOCK TABLES USERDATA READ, ProfessorClass READ, class READ, course READ');
 
-            const currentUserRole = req.query.userRole;
+            const currentUserEmail = req.query.currentUserEmail;
+
+            if (!currentUserEmail || !validator.isEmail(currentUserEmail)) {
+                return res.status(400).json({ error: 'Invalid current user email' });
+            }
+
+            // Fetch userRole based on the email
+            const [userRoleResult] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+
+            if (userRoleResult.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            const currentUserRole = userRoleResult[0].userRole;
 
             if (currentUserRole !== '0' && currentUserRole !== '1') {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access classes.' });
             }
 
-            const profEmail = req.query.email;
-
-            if (!profEmail || !validator.isEmail(profEmail)) {
-                return res.status(400).json({ error: 'Invalid professor email' });
-            }
-
             // Fetch profID based on the email
             const [profData] = await db_connection.query(`
-            SELECT profID FROM USERDATA WHERE email = ? AND userRole = '0' AND isActive = '1'
-        `, [profEmail]);
+            SELECT profID FROM USERDATA WHERE email = ? AND userRole = '0' AND isActive = '2'
+        `, [currentUserEmail]);
+
+            await db_connection.query('UNLOCK TABLES');
+
 
             if (profData.length === 0) {
                 return res.status(404).json({ error: 'Professor not found or inactive' });
@@ -1682,14 +1734,20 @@ module.exports = {
 
             const profID = profData[0].profID;
 
+            await db_connection.query('LOCK TABLES ProfessorClass pc READ, class c READ, course co READ');
+
             // Fetch classes along with course information
             const [rows] = await db_connection.query(`
             SELECT c.Dept, c.Section, c.Semester, c.batchYear, co.courseName 
             FROM ProfessorClass pc
             JOIN class c ON c.classID = pc.classID
             JOIN course co ON co.courseID = c.courseID
-            WHERE pc.profID = ? AND c.isActive = '1'
+            WHERE pc.professorID = ? AND c.isActive = '1'
         `, [profID]);
+
+            if (rows.length === 0) {
+                return res.status(401).json({ message: 'No classes found' });
+            }
 
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
@@ -1705,17 +1763,24 @@ module.exports = {
                 db_connection.release();
             }
         }
-    },
+    },],
 
-    deleteClass: async (req, res) => {
+
+    deleteClass: [webTokenValidator, async (req, res) => {
         // Delete a class
         /*
-            queries {
-                profName: <profName>
-                batchYear: <batchYear>
-                Semester: <Semester>
-                Section: <Section>
-                courseName: <courseName>
+        queries 
+        {
+            currentUserEmail: <currentUserEmail>
+        }
+            JSON
+            {
+                "email": "<email>",
+                "batchYear": "<batchYear>",
+                "Semester": "<Semester>",
+                "Section": "<Section>",
+                "Dept": "<Dept>",
+                "courseName": "<courseName>"
             }
         */
 
@@ -1725,53 +1790,143 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES class WRITE, userdata READ, course READ');
+            await db_connection.query('LOCK TABLES class WRITE, ProfessorClass WRITE, USERDATA READ, course READ');
 
-            const profName = req.query.profName;
-            const batchYear = req.query.batchYear;
-            const Semester = req.query.Semester;
-            const Section = req.query.Section;
-            const courseName = req.query.courseName;
+            const currentUserEmail = req.query.currentUserEmail;
+            const userEmail = req.body.email;
+            const batchYear = req.body.batchYear;
+            const Semester = req.body.Semester;
+            const Section = req.body.Section;
+            const Dept = req.body.Dept;
+            const courseName = req.body.courseName;
 
-            if (!profName) {
-                return res.status(400).json({ error: 'Invalid professor name' });
+            if (!currentUserEmail || !validator.isEmail(currentUserEmail)) {
+                return res.status(400).json({ error: 'Invalid user email' });
             }
 
-            // Fetch profID based on the profName
-            const [profData] = await db_connection.query(`
-            SELECT profID, userRole
+            // Fetch userRole based on the currentUserEmail
+            const [userData] = await db_connection.query(`
+            SELECT userRole
             FROM USERDATA
-            WHERE profName = ? AND isActive = '1'
-        `, [profName]);
+            WHERE email = ? AND isActive = '1'
+        `, [currentUserEmail]);
 
-            if (profData.length === 0 || profData[0].userRole !== '0') {
-                return res.status(404).json({ error: 'Professor not found or invalid permissions' });
+            if (userData.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
             }
 
-            const profID = profData[0].profID;
+            const userRole = userData[0].userRole;
 
-            // Fetch classID based on the provided details
-            const [classData] = await db_connection.query(`SELECT classID FROM ProfessorClass WHERE profID = ? AND classID IN (SELECT classID FROM class WHERE batchYear = ? AND Semester = ? AND Section = ? AND courseID = (SELECT courseID FROM course WHERE courseName = ?) AND isActive = '1')`, [profID, batchYear, Semester, Section, courseName]);
+            if (userRole === '0') {
+                // If the user is a faculty, ensure they can only delete their own classes
+                const [profData] = await db_connection.query(`
+                SELECT profID
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [currentUserEmail]);
 
-            if (classData.length === 0) {
-                return res.status(404).json({ error: 'Class not found or already deleted' });
-            }
+                if (profData.length === 0) {
+                    return res.status(404).json({ error: 'Professor not found' });
+                }
 
-            const classID = classData[0].classID;
+                const profID = profData[0].profID;
 
-            // Start a transaction
-            await db_connection.query('START TRANSACTION');
+                // Fetch classID based on the provided details and profID
+                const [classData] = await db_connection.query(`
+                SELECT classID
+                FROM ProfessorClass
+                WHERE professorID = ? AND classID IN (
+                    SELECT classID
+                    FROM class
+                    WHERE batchYear = ? AND Semester = ? AND Section = ? AND Dept = ? AND courseID = (
+                        SELECT courseID
+                        FROM course
+                        WHERE courseName = ?
+                    ) AND isActive = '1'
+                )
+            `, [profID, batchYear, Semester, Section, Dept, courseName]);
 
-            const [result] = await db_connection.query('UPDATE class SET isActive = ? WHERE classID = ?', [0, classID]);
+                if (classData.length === 0) {
+                    return res.status(404).json({ error: 'Class not found or you do not have permission to delete' });
+                }
 
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'Class deleted successfully' });
+                const classID = classData[0].classID;
+
+                // Start a transaction
+                await db_connection.query('START TRANSACTION');
+
+                // Delete entry from ProfessorClass
+                await db_connection.query('DELETE FROM ProfessorClass WHERE professorID = ? AND classID = ?', [profID, classID]);
+
+                // Delete class from class table
+                const [result] = await db_connection.query('UPDATE class SET isActive = ? WHERE classID = ?', [0, classID]);
+
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.json({ message: 'Class deleted successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to delete class' });
+                }
+            } else if (userRole === '1') {
+
+                // If the user is an admin, ensure they provide the userEmail to delete any class
+                if (!userEmail || !validator.isEmail(userEmail)) {
+                    return res.status(400).json({ error: 'Invalid user email for admin deletion' });
+                }
+
+                // Fetch profID based on the userEmail
+                const [profData] = await db_connection.query(`
+                SELECT profID
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+
+                if (profData.length === 0) {
+                    return res.status(404).json({ error: 'Professor not found or invalid permissions' });
+                }
+
+                const profID = profData[0].profID;
+
+                // Fetch classID based on the provided details and profID
+                const [classData] = await db_connection.query(`
+                SELECT classID
+                FROM class
+                WHERE batchYear = ? AND Semester = ? AND Section = ? AND Dept = ? AND courseID = (
+                    SELECT courseID
+                    FROM course
+                    WHERE courseName = ?
+                ) AND isActive = '1'
+            `, [batchYear, Semester, Section, Dept, courseName]);
+
+                if (classData.length === 0) {
+                    return res.status(404).json({ error: 'Class not found or already deleted' });
+                }
+
+                const classID = classData[0].classID;
+
+                // Start a transaction
+                await db_connection.query('START TRANSACTION');
+
+                // Delete entry from ProfessorClass
+                await db_connection.query('DELETE FROM ProfessorClass WHERE professorID = ? AND classID = ?', [profID, classID]);
+
+                // Delete class from class table
+                const [result] = await db_connection.query('UPDATE class SET isActive = ? WHERE classID = ?', [0, classID]);
+
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.json({ message: 'Class deleted successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to delete class' });
+                }
             } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to delete class' });
+                return res.status(403).json({ error: 'Permission denied. Only faculty and admins can delete classes.' });
             }
         } catch (error) {
             console.error(error);
@@ -1779,20 +1934,21 @@ module.exports = {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
-            fs.appendFileSync('logs/errorLogs.txt', `${new Date().toISOString()} - deleteClass - ${error}\n`);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteClass - ${error}\n`);
             res.status(500).json({ error: 'Failed to delete class' });
         } finally {
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
     // -------------------Class Operations Ends------------------------------
 
     // -------------------Slot Operations Starts------------------------------
 
-    createSlots: async (req, res) => {
+    createSlot: [webTokenValidator, async (req, res) => {
         // Create a class slot
         /*
             queries {
@@ -1889,18 +2045,22 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
-    deleteSlot: async (req, res) => {
+    deleteSlot: [webTokenValidator, async (req, res) => {
         // Delete a class slot
         /*
             queries {
-                email: <userEmail>
-                batchYear: <batchYear>
-                Dept: <Dept>
-                Section: <Section>
-                Semester: <Semester>
-                PeriodNo: <PeriodNo>
+                userEmail: <userEmail>
+            }
+            JSON
+            {
+                "batchYear": "<batchYear>",
+                "Dept": "<Dept>",
+                "Section": "<Section>",
+                "Semester": "<Semester>",
+                "periodNo": "<periodNo>"
+            }
             */
         let db_connection;
 
@@ -1910,12 +2070,12 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ');
 
-            const userEmail = req.query.email;
-            const batchYear = req.query.batchYear;
-            const Dept = req.query.Dept;
-            const Section = req.query.Section;
-            const Semester = req.query.Semester;
-            const PeriodNo = req.query.PeriodNo;
+            const userEmail = req.query.userEmail;
+            const batchYear = req.body.batchYear;
+            const Dept = req.body.Dept;
+            const Section = req.body.Section;
+            const Semester = req.body.Semester;
+            const PeriodNo = req.body.periodNo;
 
             // Fetch userRole based on the email
             const [userResult] = await db_connection.query(`
@@ -1925,7 +2085,7 @@ module.exports = {
         `, [userEmail]);
 
             if (userResult.length === 0) {
-                return res.status(404).json({ error: 'User not found or inactive' });
+                return res.status(404).json({ error: 'User not found' });
             }
 
             const currentUserRole = userResult[0].userRole;
@@ -1949,8 +2109,8 @@ module.exports = {
             const [classData] = await db_connection.query(`
             SELECT classID
             FROM class
-            WHERE profID = ? AND batchYear = ? AND Semester = ? AND Section = ? AND isActive = '1'
-        `, [profID, batchYear, Semester, Section]);
+            WHERE batchYear = ? AND Semester = ? AND Section = ? AND isActive = '1'
+        `, [batchYear, Semester, Section]);
 
             if (classData.length === 0) {
                 return res.status(404).json({ error: 'Class not found' });
@@ -1996,13 +2156,13 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
     // -------------------Slot Operations Ends------------------------------
 
     // -------------------Course Operations Starts--------------------------
 
-    createCourse: async (req, res) => {
+    createCourse: [webTokenValidator, async (req, res) => {
         /*
             queries {
                 email: <userEmail>
@@ -2070,13 +2230,16 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
-    deleteCourse: async (req, res) => {
+    deleteCourse: [webTokenValidator, async (req, res) => {
         /*
             queries {
                 email: <userEmail>
-                courseName: <courseName>
+            }
+            JSON
+            {
+                "courseName": "<courseName>"
             }
         */
 
@@ -2089,7 +2252,7 @@ module.exports = {
             await db_connection.query('LOCK TABLES course WRITE, userdata READ');
 
             const userEmail = req.query.email;
-            const courseName = req.query.courseName;
+            const courseName = req.body.courseName;
 
             // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
@@ -2149,7 +2312,7 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    },],
 
     // -------------------Course Operations Ends----------------------------
 

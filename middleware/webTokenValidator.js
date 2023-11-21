@@ -37,7 +37,6 @@ async function tokenValidator(req, res, next) {
         });
         return;
     }
-
 }
 
 module.exports = tokenValidator;

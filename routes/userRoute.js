@@ -35,17 +35,17 @@ router.get('/all-students', userWebController.allStudents); //done
 router.post('/add-students', userWebController.addStudents); //done
 
 // Class routes
-router.post('/add-class', userWebController.createClass);
-router.get('/my-classes', userWebController.myClasses);
+router.post('/add-class', userWebController.createClass); //done
+router.get('/my-classes', userWebController.myClasses); //done
 router.delete('/delete-class', userWebController.deleteClass);
 
 // Slot routes
-router.post('/add-slot', userWebController.createSlots);
-router.delete('/delete-slot', userWebController.deleteSlot);
+router.post('/add-slot', userWebController.createSlot); //done
+router.delete('/delete-slot', userWebController.deleteSlot); //done
 
 // Course routes
-router.post('/add-course', userWebController.createCourse);
-router.delete('/delete-slot', userWebController.deleteSlot);
+router.post('/add-course', userWebController.createCourse); //done
+router.delete('/delete-course', userWebController.deleteCourse); //done
 
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);

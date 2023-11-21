@@ -199,6 +199,13 @@ VALUES (2023, 'Computer Science', 'A', 1, 1),
     (2023, 'Political Science', 'G', 17, 2),
     (2023, 'Environmental Science', 'H', 18, 2),
     (2023, 'Information Technology', 'I', 19, 2);
+INSERT INTO ProfessorClass (professorID, classID)
+VALUES
+    (1, 1), -- Professor Prasad S for Computer Science, Section A
+    (2, 2), -- Professor Professor Johnson for Mathematics, Section B
+    (3, 3) -- Professor Professor White for Physics, Section C
+    -- Add more entries as needed
+    ;
 -- Insert sample data into the studentData table
 INSERT INTO studentData (RollNo, StdName, classID)
 VALUES ('CB.EN.U4CSE22401', 'John Doe', 1),

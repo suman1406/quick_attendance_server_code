@@ -37,3 +37,36 @@
 2023-11-20T20:05:06.900Z - addStudents - Error: Column count doesn't match value count at row 1
 2023-11-20T20:08:26.965Z - addStudents - Error: Column count doesn't match value count at row 1
 2023-11-20T20:15:24.880Z - addStudents - ReferenceError: courseResult is not defined
+2023-11-21T06:24:41.996Z - addFaculty - ReferenceError: userEmail is not defined
+2023-11-21T06:42:20.594Z - createClass - Error: Table 'USERDATA' was not locked with LOCK TABLES
+2023-11-21T06:47:11.209Z - createClass - TypeError: Assignment to constant variable.
+2023-11-21T06:47:35.016Z - createClass - ReferenceError: profResult is not defined
+2023-11-21T06:48:21.983Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T06:48:55.836Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T06:49:17.556Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T06:51:02.662Z - createClass - ReferenceError: reqEmail is not defined
+2023-11-21T06:57:25.246Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T06:57:45.128Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T06:58:48.500Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:22:08.148Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:28:13.365Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:29:42.717Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:30:31.344Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:33:16.873Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:33:54.091Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:34:34.677Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:36:48.728Z - createClass - TypeError: Cannot read properties of undefined (reading 'length')
+2023-11-21T11:57:26.333Z - myClasses - Error: Table 'pc' was not locked with LOCK TABLES
+2023-11-21T11:59:44.767Z - myClasses - Error: Table 'pc' was not locked with LOCK TABLES
+2023-11-21T12:01:39.745Z - myClasses - Error: Table 'pc' was not locked with LOCK TABLES
+2023-11-21T12:01:56.964Z - myClasses - Error: Table 'c' was not locked with LOCK TABLES
+2023-11-21T12:02:20.509Z - myClasses - Error: Unknown column 'pc.profID' in 'where clause'
+2023-11-21T14:02:57.779Z - deleteSlot - Error: Unknown column 'profID' in 'where clause'
+2023-11-21T14:06:13.343Z - deleteSlot - TypeError: Cannot read properties of undefined (reading 'userRole')
+2023-11-21T14:06:50.833Z - deleteSlot - TypeError: Cannot read properties of undefined (reading 'userRole')
+2023-11-21T14:07:02.177Z - deleteSlot - TypeError: Cannot read properties of undefined (reading 'userRole')
+2023-11-21T14:08:35.002Z - deleteSlot - ReferenceError: userResult is not defined
+2023-11-21T14:20:27.532Z - deleteClass - Error: Unknown column 'profID' in 'where clause'
+2023-11-21T14:21:10.364Z - deleteClass - Error: Unknown column 'profID' in 'where clause'
+2023-11-21T14:26:21.556Z - deleteClass - Error: Unknown column 'profID' in 'where clause'
+2023-11-21T14:32:00.770Z - deleteClass - Error: Unknown column 'profID' in 'where clause'
