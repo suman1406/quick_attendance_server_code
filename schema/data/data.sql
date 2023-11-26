@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS USERREGISTER (
 );
 -- Insert sample data into the course table
 INSERT INTO course (courseName)
-VALUES ('Mathematics'),
+VALUES ('Computer Science'),
+    ('Mathematics'),
     ('Physics'),
     ('Biology'),
     ('History'),
@@ -123,8 +124,8 @@ VALUES (
         NULL
     ),
     (
-        'prof3@example.com',
-        'password789',
+        'psuman045@gmail.com',
+        'goodluck',
         'Professor White',
         '0',
         3
@@ -172,6 +173,13 @@ VALUES (
         9
     ),
     (
+        'manojsubbareddysabbella259@gmail.com',
+        'password',
+        'Manoj',
+        '1',
+        9
+    ),
+    (
         'psuman1406@gmail.com',
         'goodluck',
         'Suman',
@@ -200,12 +208,15 @@ VALUES (2023, 'Computer Science', 'A', 1, 1),
     (2023, 'Environmental Science', 'H', 18, 2),
     (2023, 'Information Technology', 'I', 19, 2);
 INSERT INTO ProfessorClass (professorID, classID)
-VALUES
-    (1, 1), -- Professor Prasad S for Computer Science, Section A
-    (2, 2), -- Professor Professor Johnson for Mathematics, Section B
-    (3, 3) -- Professor Professor White for Physics, Section C
+VALUES (1, 1),
+    -- Professor Prasad S for Computer Science, Section A
+    (2, 2),
+    -- Professor Professor Johnson for Mathematics, Section B
+    (3, 3),
+    -- Professor Professor White for Physics, Section C
     -- Add more entries as needed
-    ;
+    (12, 4),
+    (12, 3);
 -- Insert sample data into the studentData table
 INSERT INTO studentData (RollNo, StdName, classID)
 VALUES ('CB.EN.U4CSE22401', 'John Doe', 1),

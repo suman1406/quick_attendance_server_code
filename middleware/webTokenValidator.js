@@ -20,8 +20,8 @@ async function tokenValidator(req, res, next) {
         if (payLoad["secret_key"] == secret_key) {
 
             req.authorization_tier = payLoad["userRole"];
-            req.body.userEmail = payLoad["userEmail"];
-            req.body.userRole = payLoad["userRole"];
+            req.userEmail = payLoad["userEmail"];
+            req.userRole = payLoad["userRole"];
 
             next();
             return;

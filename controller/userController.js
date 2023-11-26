@@ -40,10 +40,12 @@ module.exports = {
 
         let db_connection = await db.promise().getConnection();
 
+        console.log(req.userEmail)
+
         if (
-            req.body.email === null ||
-            req.body.email === undefined ||
-            req.body.email === ""
+            req.userEmail === null ||
+            req.userEmail === undefined ||
+            req.userEmail === ""
         ) {
             db_connection.release();
             return res.status(400).send({ "message": "Invalid email!" });
@@ -55,7 +57,7 @@ module.exports = {
                 // Check if the user making the request is an admin
                 const [admin] = await db_connection.query(
                     `SELECT * from USERDATA WHERE email = ? AND userRole = ?`,
-                    [req.body.email, "1"]
+                    [req.userEmail, "1"]
                 );
 
                 await db_connection.query('UNLOCK TABLES');
@@ -67,17 +69,21 @@ module.exports = {
 
                 await db_connection.query('LOCK TABLES USERDATA u READ, COURSE c READ');
 
+                console.log(req.body.reqRole)
+
                 let users;
-                if (req.body.reqRole === "0") {
+                if (req.body.reqRole == "0") {
                     // Fetch all faculty members
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["0", "1"]
+                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["0", "2"]
                     );
-                } else if (req.body.reqRole === "1") {
+                } else if (req.body.reqRole == "1") {
                     // Fetch all administrators
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["1", "1"]
+                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["1", "2"]
                     );
+
+                    console.log(users)
                 } else {
                     await db_connection.query('UNLOCK TABLES');
                     db_connection.release();
@@ -114,9 +120,6 @@ module.exports = {
         Headers: {
             "Authorization": "Bearer <SECRET_TOKEN>"
         }
-        queries {
-            currentUserEmail: <currentUserEmail>,
-        }
         JSON
         {
             "profName": <profName>,
@@ -129,7 +132,7 @@ module.exports = {
         let db_connection;
 
         try {
-            const currentUserEmail = req.query.currentUserEmail;
+            const currentUserEmail = req.currentUserEmail;
             const userEmail = req.body.email;
             const { profName, email, password, courseName } = req.body;
 
@@ -252,20 +255,15 @@ module.exports = {
         JSON
         {
             "userEmail": "<userEmail>",
-            "currentUserEmail": "<currentUserEmail>",
             "adminProfName": "<profName>"
         }
         */
-
+        console.log(req.body.Email)
         if (
-            req.body.userEmail === null ||
-            req.body.userEmail === undefined ||
-            req.body.userEmail === "" ||
-            !validator.isEmail(req.body.userEmail) ||
-            req.body.currentUserEmail === null ||
-            req.body.currentUserEmail === undefined ||
-            req.body.currentUserEmail === "" ||
-            !validator.isEmail(req.body.currentUserEmail)
+            req.body.Email === null ||
+            req.body.Email === undefined ||
+            req.body.Email === "" ||
+            !validator.isEmail(req.body.Email)
         ) {
             return res.status(400).send({ "message": "Access Restricted!" });
         }
@@ -283,16 +281,16 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
 
-            // Check if the current user is an admin
-            let [admin] = await db_connection.query(
-                `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
-                [req.body.currentUserEmail, "1"]
-            );
-
-            if (admin.length === 0) {
-                await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ "message": "Access Restricted!" });
-            }
+            // // Check if the current user is an admin
+            // let [admin] = await db_connection.query(
+            //     `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
+            //     [req.userEmail, "1"]
+            // );
+            //     console.log(req.userEmail)
+            // if (admin.length === 0) {
+            //     await db_connection.query(`UNLOCK TABLES`);
+            //     return res.status(401).send({ "message": "Access Restricted!" });
+            // }
 
             // Check if admin exists
             let [adminToDelete] = await db_connection.query(
@@ -343,20 +341,15 @@ module.exports = {
         JSON
         {
             "userEmail": "<userEmail>",
-            "currentUserEmail": "<currentUserEmail>",
             "facultyProfName": "<profName>"
         }
         */
 
         if (
-            req.body.userEmail === null ||
-            req.body.userEmail === undefined ||
-            req.body.userEmail === "" ||
-            !validator.isEmail(req.body.userEmail) ||
-            req.body.currentUserEmail === null ||
-            req.body.currentUserEmail === undefined ||
-            req.body.currentUserEmail === "" ||
-            !validator.isEmail(req.body.currentUserEmail)
+            req.body.Email === null ||
+            req.body.Email === undefined ||
+            req.body.Email === "" ||
+            !validator.isEmail(req.body.Email)
         ) {
             return res.status(400).send({ "message": "Access Restricted!" });
         }
@@ -374,21 +367,21 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
 
-            // Check if the current user is an admin
-            let [admin] = await db_connection.query(
-                `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
-                [req.body.currentUserEmail, "1"]
-            );
+            // // Check if the current user is an admin
+            // let [admin] = await db_connection.query(
+            //     `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
+            //     [req.body.currentUserEmail, "1"]
+            // );
 
-            if (admin.length === 0) {
-                await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ "message": "Access Restricted!" });
-            }
+            // if (admin.length === 0) {
+            //     await db_connection.query(`UNLOCK TABLES`);
+            //     return res.status(401).send({ "message": "Access Restricted!" });
+            // }
 
             // Check if faculty exists
             let [faculty] = await db_connection.query(
-                `SELECT profID, profName, email, userRole FROM USERDATA WHERE profName = ? AND isActive = ? AND userRole = ?`,
-                [req.body.facultyProfName, "1", "0"]
+                `SELECT profID, profName, userRole FROM USERDATA WHERE email = ? AND userRole = ?`,
+                [req.body.Email, "0"]
             );
 
             if (faculty.length === 0) {
@@ -409,7 +402,7 @@ module.exports = {
             // Notify via email
             mailer.accountDeactivated(
                 faculty[0].profName,
-                faculty[0].email,
+                req.body.Email,
             );
 
             return res.status(200).send({ "message": "Faculty member deleted successfully!" });
@@ -427,6 +420,7 @@ module.exports = {
 
     addFaculty: [webTokenValidator, async (req, res) => {
         let db_connection;
+        console.log(req)
 
         try {
             const { userName, newUserEmail, courseName } = req.body;
@@ -446,11 +440,12 @@ module.exports = {
                 return res.status(400).send({ "message": "Missing details." });
             }
 
+            // Attempt to get a connection from the pool
             db_connection = await db.promise().getConnection();
 
-            // Ensure all required fields are defined
-            if (!newUserEmail || !userName || !courseName) {
-                return res.status(400).json({ error: 'All fields are required' });
+            // Ensure a connection is obtained
+            if (!db_connection) {
+                throw new Error('Failed to obtain a database connection.');
             }
 
             // Lock the necessary tables to prevent concurrent writes
@@ -514,16 +509,19 @@ module.exports = {
             return res.status(500).send({ "message": "Internal Server Error." });
         } finally {
             // Unlock the tables and release the database connection
-            await db_connection.query('UNLOCK TABLES');
-            db_connection.release();
+            if (db_connection) {
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+            }
         }
-    },
-    ],
+    }],
 
     addAdmin: [
         webTokenValidator,
         async (req, res) => {
             let db_connection;
+
+            console.log(res)
 
             try {
                 const { userName, newUserEmail, courseName } = req.body;
@@ -540,7 +538,7 @@ module.exports = {
                     req.body.courseName === undefined ||
                     req.body.courseName === ""
                 ) {
-                    return res.status(400).send({ "message": "Missing details." });
+                    return res.status(404).send({ "message": "Missing details." });
                 }
 
                 db_connection = await db.promise().getConnection();
@@ -558,6 +556,8 @@ module.exports = {
                     'SELECT courseID FROM course WHERE courseName = ?',
                     [courseName]
                 );
+
+                console.log(courseResult[0])
 
                 if (courseResult.length === 0) {
                     await db_connection.query('UNLOCK TABLES');
@@ -583,7 +583,7 @@ module.exports = {
 
                 if (existingUser.length > 0) {
                     await db_connection.query('UNLOCK TABLES');
-                    return res.status(400).send({ "message": "User already registered!" });
+                    return res.status(403).send({ "message": "User already registered!" });
                 }
 
                 // Generate a random password for the manager.
@@ -596,7 +596,7 @@ module.exports = {
                 const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
 
                 // Email the password to the user.
-                mailer.officialCreated(userName, newUserEmail, hashedPassword);
+                mailer.officialCreated(userName, newUserEmail, memberPassword);
 
                 // Insert the user into the USERDATA table
                 await db_connection.query(
@@ -637,6 +637,7 @@ module.exports = {
             "password": "<password>"
         }
         */
+        // console.log(req)
         if (
             req.body.email === null ||
             req.body.email === undefined ||
@@ -691,9 +692,11 @@ module.exports = {
                     await db_connection.query(`UNLOCK TABLES`);
 
                     console.log(secret_token)
+
                     return res.status(201).send({
                         "message": "First time login! OTP sent to email.",
                         "SECRET_TOKEN": secret_token,
+                        "userRole": user[0].userRole,
                         "email": user[0].email,
                         "profName": user[0].profName,
                     });
@@ -702,7 +705,7 @@ module.exports = {
                 }
                 else if (user[0].isActive === "1") {
                     const secret_token = await webTokenGenerator({
-                        "email": req.body.email,
+                        "userEmail": req.body.email,
                         "userRole": user[0].userRole,
                     });
 
@@ -789,7 +792,7 @@ module.exports = {
                     return res.status(400).send({ "message": "Invalid Email." }); //bad req 400
                 }
 
-                await db_connection.query(`UPDATE USERDATA SET password = ? WHERE email = ?`, [req.body.password, req.email]);
+                await db_connection.query(`UPDATE USERDATA SET password = ?, isActive = '1' WHERE email = ?`, [req.body.password, req.email]);
 
                 await db_connection.query(`UNLOCK TABLES`);
 
@@ -798,7 +801,8 @@ module.exports = {
                     "userRole": user[0].userRole,
                 });
 
-                return res.status(201).send({
+
+                return res.status(200).send({
                     "message": "User Verified and Password updated",
                     "SECRET_TOKEN": secret_token,
                     "email": user[0].email,
@@ -1055,6 +1059,31 @@ module.exports = {
         }
     },],
 
+    allUserRoles: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES userdata READ');
+
+            const [rows] = await db_connection.query('SELECT DISTINCT userRole FROM userData WHERE isActive = 2');
+            const userRole = rows.map(row => row.userRole);
+
+            res.status(200).json({ userRole: userRole });
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - api/userRole - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch userRole' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
+        }
+    }],
+
     // -----------------------Authentication Operations End-----------------
 
     // -----------------------Student Operations Start---------------------------
@@ -1063,7 +1092,6 @@ module.exports = {
         /*
             JSON
             {
-                "currentUserEmail": "<currentUserEmail>",
                 "RollNo": "<RollNo>",
                 "StdName": "<StdName>",
                 "batchYear": "<batchYear>",
@@ -1076,12 +1104,12 @@ module.exports = {
         let db_connection;
 
         try {
-            const { currentUserEmail, RollNo, StdName, batchYear, Dept, Section, Semester } = req.body;
+            const { RollNo, StdName, batchYear, Dept, Section, Semester } = req.body;
 
             db_connection = await db.promise().getConnection();
 
             // Ensure all required fields are defined
-            if (!currentUserEmail || !RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
+            if (!RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
                 return res.status(400).json({ error: 'All fields are required' });
             }
 
@@ -1095,7 +1123,7 @@ module.exports = {
             await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, course READ');
 
             // Fetch userRole based on currentUserEmail
-            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [req.userEmail]);
 
             if (currentUser.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
@@ -1103,8 +1131,6 @@ module.exports = {
             }
 
             const currentUserRole = currentUser[0].userRole;
-
-            // Continue with your logic based on currentUserRole...
 
             // Fetch courseID based on Dept
             const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [Dept]);
@@ -1116,14 +1142,14 @@ module.exports = {
 
             // Insert data into class table
             const [classResult] = await db_connection.query(
-                'INSERT INTO class (batchYear, Dept, Section, courseID, Semester) VALUES (?, ?, ?, ?, ?)',
+                'SELECT * FROM class WHERE batchYear = ? AND Dept = ? AND Section = ? AND courseID = ? AND Semester = ?',
                 [batchYear, Dept, Section, courseResult[0].courseID, Semester]
             );
 
             // Insert data into studentData table
             const [result] = await db_connection.query(
                 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                [RollNo, StdName, classResult.insertId]
+                [RollNo, StdName, classResult.classID]
             );
 
             if (result.affectedRows === 1) {
@@ -1157,9 +1183,6 @@ module.exports = {
     editStudent: [webTokenValidator, async (req, res) => {
         // Edit student details
         /*
-            queries {
-                currentUserEmail: <currentUserEmail>
-            }
             JSON
             {
                 "RollNo": "<NewRollNo>",
@@ -1174,7 +1197,7 @@ module.exports = {
 
         try {
             const { RollNo, StdName, batchYear, Section, Dept, Semester } = req.body;
-            const currentUserEmail = req.query.currentUserEmail;
+            const currentUserEmail = req.userEmail;
 
             db_connection = await db.promise().getConnection();
 
@@ -1265,9 +1288,6 @@ module.exports = {
     deleteStudent: [webTokenValidator, async (req, res) => {
         // Deactivate a student
         /*
-            queries {
-                currentUserEmail: <currentUserEmail>
-            }
             JSON
             {
                 "RollNo": "<RollNo>"
@@ -1278,7 +1298,7 @@ module.exports = {
 
         try {
             const RollNo = req.body.RollNo;
-            const currentUserEmail = req.query.currentUserEmail;
+            const currentUserEmail = req.userEmail;
 
             if (!currentUserEmail) {
                 return res.status(400).json({ error: 'currentUserEmail is required' });
@@ -1337,9 +1357,6 @@ module.exports = {
     activateStudent: [webTokenValidator, async (req, res) => {
         // Activate a student
         /*
-            queries {
-                currentUserEmail: <currentUserEmail>
-            }
             JSON
             {
                 "RollNo": "<RollNo>"
@@ -1350,7 +1367,7 @@ module.exports = {
 
         try {
             const RollNo = req.body.RollNo;
-            const currentUserEmail = req.query.currentUserEmail;
+            const currentUserEmail = req.userEmail;
 
             if (!currentUserEmail) {
                 return res.status(400).json({ error: 'currentUserEmail is required' });
@@ -1407,44 +1424,57 @@ module.exports = {
     }],
 
     allStudents: [webTokenValidator, async (req, res) => {
-        // Fetch all students based on batchYear, dept, section, and semester
         /*
-            JSON
-            {
-                "batchYear": "<batchYear>",
-                "dept": "<dept>",
-                "section": "<section>",
-                "semester": "<semester>"
-            }
+          query
+          {
+              "batchYear": "<batchYear>",
+              "dept": "<dept>",
+              "section": "<section>",
+              "semester": "<semester>"
+          }
         */
 
-        let db_connection;
+        let dbConnection;
 
         try {
             const { batchYear, dept, section, semester } = req.body;
 
-            db_connection = await db.promise().getConnection();
+            console.log(batchYear)
+            console.log(dept)
+            console.log(section)
+            console.log(semester)
+            console.log('Received Parameters:', req.body);
+
+            // Validate that all required parameters are present
+            if (batchYear === undefined || dept === undefined || section === undefined || semester === undefined) {
+                console.error('One of the parameters is undefined');
+                return res.status(400).json({ error: 'All parameters are required' });
+            }
+
+            dbConnection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES studentData s READ, class c READ');
+            await dbConnection.query('LOCK TABLES studentData s READ, class c READ');
 
-            if (batchYear !== undefined && dept !== undefined && section !== undefined && semester !== undefined) {
-                const [rows] = await db_connection.query('SELECT s.* FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ? AND c.Semester = ?', [1, batchYear, dept, section, semester]);
-                res.json(rows);
-            } else {
-                // Handle the case where one of the parameters is undefined
-                console.error('One of the parameters is undefined');
-                res.status(400).json({ error: 'All parameters are required' });
-            }
+            const [rows] = await dbConnection.query(
+                'SELECT s.* FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ? AND c.Semester = ?',
+                [1, batchYear, dept, section, semester]
+            );
+
+            console.log(rows)
+
+            res.status(200).json({ students: rows });
         } catch (error) {
             console.error(error);
             const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - allStudents - ${error}\n`);
+            await fs.appendFile('logs/errorLogs.txt', `${time.toISOString()} - allStudents - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch students' });
         } finally {
-            // Unlock the tables
-            await db_connection.query('UNLOCK TABLES');
-            db_connection.release();
+            // Unlock the tables even if an error occurs
+            if (dbConnection) {
+                await dbConnection.query('UNLOCK TABLES');
+                dbConnection.release();
+            }
         }
     }],
 
@@ -1504,6 +1534,8 @@ module.exports = {
                     await db_connection.rollback();
                     return res.status(400).json({ error: 'Invalid roll number format' });
                 }
+
+                await db_connection.query('LOCK TABLES userData s WRITE');
 
                 // Fetch userRole based on currentUserEmail
                 const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
@@ -1565,6 +1597,46 @@ module.exports = {
         }
     },],
 
+    fetchStudentData: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            const { studentRollNo } = req.query;
+
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES studentData s READ , class c READ');
+
+            const [rows] = await db_connection.query('SELECT s.RollNo, s.StdName, c.batchYear, c.Dept, c.semester, c.section FROM studentData s join class c on s.classID = c.classID WHERE s.RollNo = ?', [studentRollNo]);
+
+            console.log(rows)
+
+            if (rows.length > 0) {
+                const studentData = rows[0];
+
+                res.status(200).json({ student: studentData });
+            } else {
+                res.status(404).json({ error: 'Student not found' });
+            }
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Failed to fetch student data' });
+        } finally {
+            // Unlock the tables
+            try {
+                await db_connection.query('UNLOCK TABLES');
+            } catch (unlockError) {
+                console.error('Error unlocking tables:', unlockError);
+            }
+
+            if (db_connection) {
+                db_connection.release();
+            }
+        }
+    }],
+
+
     // -------------------Student Operations Ends------------------------------
 
     // -------------------Class Operations Starts------------------------------
@@ -1572,9 +1644,6 @@ module.exports = {
     createClass: [webTokenValidator, async (req, res) => {
         // Create a class
         /*
-            queries {
-                currentUserEmail: <currentUserEmail>
-            }
             JSON
             {
                 "batchYear": "<batchYear>",
@@ -1582,7 +1651,6 @@ module.exports = {
                 "Section": "<Section>",
                 "Semester": "<Semester>",
                 "courseName": "<courseName>",
-                "profEmail": "<profEmail>"
             }
         */
 
@@ -1596,10 +1664,10 @@ module.exports = {
 
             const isActive = '1'; // Assuming isActive is a CHAR(1) field
 
-            const currentUserEmail = req.query.currentUserEmail; // Updated: Extract email from request body
+            const userEmail = req.userEmail;
 
             // Find the current user's role based on email
-            const [userRoleResult] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+            const [userRoleResult] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ?', [userEmail]);
 
             if (userRoleResult.length === 0) {
                 // Rollback the transaction
@@ -1616,7 +1684,7 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester, courseName, profEmail } = req.body;
+            const { batchYear, Dept, Section, Semester, courseName } = req.body;
 
             // Find courseID based on courseName
             const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [courseName]);
@@ -1631,12 +1699,9 @@ module.exports = {
 
             let profResult;
             console.log(currentUserRole)
-            if (currentUserRole === '1') {
-                [profResult] = await db_connection.query('SELECT profID FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [profEmail, 1, 1]);
-            } else if (currentUserRole === '0') {
-                // Find profID based on profEmail
-                [profResult] = await db_connection.query('SELECT profID FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [currentUserEmail, 0, 1]);
-            }
+
+            [profResult] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [userEmail, 1, 1]);
+
 
             console.log('#########' + profResult)
 
@@ -1689,10 +1754,7 @@ module.exports = {
 
     myClasses: [webTokenValidator, async (req, res) => {
         // Fetch classes for a professor or admin
-        /*
-            queries {
-                currentUserEmail: <currentUserEmail>
-            */
+
         let db_connection;
 
         try {
@@ -1701,31 +1763,38 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES USERDATA READ, ProfessorClass READ, class READ, course READ');
 
-            const currentUserEmail = req.query.currentUserEmail;
+            const userEmail = req.body.userEmail;
 
-            if (!currentUserEmail || !validator.isEmail(currentUserEmail)) {
+            console.log(req.body.userEmail)
+
+            if (!userEmail || !validator.isEmail(userEmail)) {
                 return res.status(400).json({ error: 'Invalid current user email' });
             }
 
-            // Fetch userRole based on the email
-            const [userRoleResult] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+            // Fetch user based on the email
+            const [userResult] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ?', [userEmail]);
 
-            if (userRoleResult.length === 0) {
+            if (userResult.length === 0) {
                 return res.status(404).json({ error: 'User not found' });
             }
 
-            const currentUserRole = userRoleResult[0].userRole;
+            console.log(userResult)
 
-            if (currentUserRole !== '0' && currentUserRole !== '1') {
+            const cUserRole = userResult[0].userRole;
+
+            console.log(cUserRole)
+
+            if (cUserRole !== '0' && cUserRole !== '1') {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access classes.' });
             }
 
             // Fetch profID based on the email
             const [profData] = await db_connection.query(`
-            SELECT profID FROM USERDATA WHERE email = ? AND userRole = '0' AND isActive = '2'
-        `, [currentUserEmail]);
+            SELECT * FROM USERDATA WHERE email = ? AND isActive = '1'`, [userEmail]);
 
             await db_connection.query('UNLOCK TABLES');
+
+            console.log(profData)
 
 
             if (profData.length === 0) {
@@ -1749,10 +1818,12 @@ module.exports = {
                 return res.status(401).json({ message: 'No classes found' });
             }
 
+            console.log(rows)
+
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
 
-            res.json(rows);
+            res.status(200).json(rows);
         } catch (error) {
             console.error(error);
             fs.appendFileSync('logs/errorLogs.txt', `${new Date().toISOString()} - myClasses - ${error}\n`);
@@ -1765,13 +1836,12 @@ module.exports = {
         }
     },],
 
-
     deleteClass: [webTokenValidator, async (req, res) => {
         // Delete a class
         /*
         queries 
         {
-            currentUserEmail: <currentUserEmail>
+            userEmail: <userEmail>
         }
             JSON
             {
@@ -1944,6 +2014,81 @@ module.exports = {
         }
     },],
 
+    allSemesters: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES class READ');
+
+            const [rows] = await db_connection.query('SELECT DISTINCT Semester FROM class WHERE isActive = ?', [1]);
+            const semesters = rows.map(row => row.Semester);
+
+            res.status(200).json({ semesters: semesters }); // Wrap semesters in an object with 'semesters' key
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - api/semesters - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch semesters' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
+        }
+    }],
+
+    allBatchYears: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES class READ');
+
+            const [rows] = await db_connection.query('SELECT DISTINCT batchYear FROM class WHERE isActive = ?', [1]);
+            const batchYears = rows.map(row => row.batchYear);
+
+            res.status(200).json({ batchYears }); // Wrap batch years in an object with 'batchYears' key
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - api/batchYears - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch batch years' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
+        }
+    }],
+
+    allSections: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES class READ');
+
+            const [rows] = await db_connection.query('SELECT DISTINCT Section FROM class WHERE isActive = ?', [1]);
+            const sectionNames = rows.map(row => row.Section); // Make sure to use the correct case for column name
+
+            res.status(200).json({ sections: sectionNames }); // Wrap section names in an object with 'sections' key
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - api/sections - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch sections' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
+        }
+    }],
+
     // -------------------Class Operations Ends------------------------------
 
     // -------------------Slot Operations Starts------------------------------
@@ -1951,9 +2096,6 @@ module.exports = {
     createSlot: [webTokenValidator, async (req, res) => {
         // Create a class slot
         /*
-            queries {
-                email: <userEmail>
-            }
             JSON
             {
                 "batchYear": "<batchYear>",
@@ -1972,7 +2114,7 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ');
 
-            const userEmail = req.query.email;
+            const userEmail = req.userEmail;
 
             if (!userEmail || !validator.isEmail(userEmail)) {
                 return res.status(400).json({ error: 'Invalid user email' });
@@ -1989,9 +2131,9 @@ module.exports = {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
 
-            const currentUserRole = userResult[0].userRole;
+            const cUserRole = userResult[0].userRole;
 
-            if (currentUserRole != 0 && currentUserRole != 1) {
+            if (cUserRole != 0 && cUserRole != 1) {
                 // Unlock the tables
                 await db_connection.query('UNLOCK TABLES');
                 db_connection.release();
@@ -2050,9 +2192,6 @@ module.exports = {
     deleteSlot: [webTokenValidator, async (req, res) => {
         // Delete a class slot
         /*
-            queries {
-                userEmail: <userEmail>
-            }
             JSON
             {
                 "batchYear": "<batchYear>",
@@ -2070,7 +2209,7 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ');
 
-            const userEmail = req.query.userEmail;
+            const userEmail = req.userEmail;
             const batchYear = req.body.batchYear;
             const Dept = req.body.Dept;
             const Section = req.body.Section;
@@ -2088,7 +2227,7 @@ module.exports = {
                 return res.status(404).json({ error: 'User not found' });
             }
 
-            const currentUserRole = userResult[0].userRole;
+            const cUserRole = userResult[0].userRole;
 
             if (currentUserRole != 0 && currentUserRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete slots.' });
@@ -2096,7 +2235,7 @@ module.exports = {
 
             // Fetch profID based on the email
             const [profData] = await db_connection.query(`
-            SELECT profID FROM USERDATA WHERE email = ? AND userRole = '0' AND isActive = '1'
+            SELECT profID FROM USERDATA WHERE email = ? AND isActive = '1'
         `, [userEmail]);
 
             if (profData.length === 0) {
@@ -2164,9 +2303,6 @@ module.exports = {
 
     createCourse: [webTokenValidator, async (req, res) => {
         /*
-            queries {
-                email: <userEmail>
-            }
             JSON
             {
                 "courseName": "<courseName>"
@@ -2181,7 +2317,7 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES course WRITE, userdata READ');
 
-            const userEmail = req.query.email;
+            const userEmail = req.userEmail;
 
             // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
@@ -2234,9 +2370,6 @@ module.exports = {
 
     deleteCourse: [webTokenValidator, async (req, res) => {
         /*
-            queries {
-                email: <userEmail>
-            }
             JSON
             {
                 "courseName": "<courseName>"
@@ -2251,7 +2384,7 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES course WRITE, userdata READ');
 
-            const userEmail = req.query.email;
+            const userEmail = req.userEmail;
             const courseName = req.body.courseName;
 
             // Fetch userRole based on the email
@@ -2311,6 +2444,87 @@ module.exports = {
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
+        }
+    },],
+
+    allCourses: [webTokenValidator, async (req, res) => {
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES course READ');
+
+            const [rows] = await db_connection.query('SELECT courseName FROM course WHERE isActive = ?', [1]);
+            const courseNames = rows.map(row => row.courseName);
+
+            res.status(200).json({ courses: courseNames }); // Wrap course names in an object with 'courses' key
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - api/courses - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch courses' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
+        }
+    }],
+
+    myCourses: [webTokenValidator, async (req, res) => {
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES USERDATA READ, course READ');
+
+            const userEmail = req.query.userEmail;
+
+            console.log(userEmail)
+
+            // Fetch userRole based on the email
+            const [userData] = await db_connection.query(`SELECT userRole FROM USERDATA WHERE email = ? AND isActive = '1'`, [userEmail]);
+
+            if (userData.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            await db_connection.query('UNLOCK TABLES');
+
+            const userRole = userData[0].userRole;
+
+            if (userRole != 0 && userRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can view courses.' });
+            }
+
+            await db_connection.query('LOCK TABLES USERDATA u READ, course c READ');
+
+            // Fetch courses associated with the user
+            const [rows] = await db_connection.query(`SELECT courseName FROM USERDATA u JOIN course c ON u.courseID = c.courseID WHERE u.email = ? AND u.isActive = '1'`, [userEmail]);
+
+            if (rows.length === 0) {
+                return res.status(401).json({ message: 'No classes found' });
+            }
+
+            console.log(rows)
+
+            const userCourses = rows.map(row => row.courseName);
+
+            res.status(200).json({ courses: userCourses });
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            // Log the error to a file
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - myCourses - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch user courses' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection?.release();
         }
     },],
 
