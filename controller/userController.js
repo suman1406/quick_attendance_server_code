@@ -1083,6 +1083,11 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
                 return res.status(404).json({ error: 'Current user not found' });
             }
+            
+            const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?',[RollNo])
+            if(StudentPresent.length!=0){
+                return res.status(500).json({ error: 'Student already present' });
+            }
 
             const currentUserRole = currentUser[0].userRole;
 
@@ -1103,7 +1108,7 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
                 return res.status(400).send({ "message": "Class not found!" });
             }
-
+            
             // Insert data into studentData table
             const [result] = await db_connection.query(
                 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
@@ -1112,10 +1117,10 @@ module.exports = {
 
             if (result.affectedRows === 1) {
                 await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Student added successfully' });
+                return res.status(201).json({ message: 'Student added successfully' });
             } else {
                 await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to add student' });
+                return res.status(500).json({ error: 'Failed to add student' });
             }
         } catch (error) {
             console.error(error);
