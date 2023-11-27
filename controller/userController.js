@@ -389,12 +389,10 @@ module.exports = {
                 return res.status(400).send({ "message": "Faculty doesn't exist!" });
             }
 
-            const facultyEmail = faculty[0].email;
-
             // Update the faculty's status to inactive
             await db_connection.query(
                 `UPDATE USERDATA SET isActive = '0' WHERE email = ? AND userRole = '0' AND isActive = '1'`,
-                [facultyEmail]
+                [req.body.Email]
             );
 
             await db_connection.query(`UNLOCK TABLES`);
