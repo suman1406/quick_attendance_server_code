@@ -163,6 +163,7 @@ INSERT INTO USERDATA (email, password, profName, userRole) VALUES
 ('teacher8@example.com', 'teacherpass8', 'Teacher 8', '1'),
 ('teacher9@example.com', 'teacherpass9', 'Teacher 9', '1'),
 ('teacher10@example.com', 'teacherpass10', 'Teacher 10', '1'),
+('thanuskumaara@gmail.com','THANUSqa','Thanus Kumaar','1'),
 ('psuman1406@gmail.com', 'goodluck', 'P Suman', '1');
 
 

@@ -437,6 +437,7 @@ module.exports = {
                 department === "" ||
                 !Array.isArray(courses) || courses.length === 0
             ) {
+                console.log(userName, newUserEmail, department, courses)
                 return res.status(400).send({ "message": "Missing details." });
             }
 
@@ -483,10 +484,14 @@ module.exports = {
             const professorID = insertUserResult.insertId;
 
             // Associate professor with courses in ProfCourse table
-            for (const courseID of courses) {
+            for (const course of courses) {
+                let [courseID] = await db_connection.query(
+                    'SELECT CourseID from Course where CourseName = ?',[course]          
+                )
+                console.log(courseID[0].CourseID)
                 await db_connection.query(
                     'INSERT INTO ProfCourse (professorID, courseID) VALUES (?, ?)',
-                    [professorID, courseID]
+                    [professorID, courseID[0].CourseID]
                 );
             }
 
