@@ -75,12 +75,12 @@ module.exports = {
                 if (req.body.reqRole == "0") {
                     // Fetch all faculty members
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["0", "2"]
+                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '0' AND u.isActive = '2'`, // change to 1 later
                     );
                 } else if (req.body.reqRole == "1") {
                     // Fetch all administrators
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email, c.courseName FROM USERDATA u LEFT JOIN COURSE c ON u.courseID = c.courseID WHERE u.userRole = ? AND u.isActive = ?`, ["1", "2"]
+                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '1' AND u.isActive = '2'`
                     );
 
                     console.log(users)
@@ -132,7 +132,7 @@ module.exports = {
         let db_connection;
 
         try {
-            const currentUserEmail = req.currentUserEmail;
+            const currentUserEmail = req.userEmail;
             const userEmail = req.body.email;
             const { profName, email, password, courseName } = req.body;
 
@@ -181,9 +181,9 @@ module.exports = {
                         const salt = crypto.randomBytes(16).toString('hex');
                         const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 
-                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE profID = ?', [profName, userEmail, hashedPassword, courseID, profID]);
+                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and password = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, hashedPassword, profID, courseID]);
                     } else {
-                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE profID = ?', [profName, userEmail, courseID, profID]);
+                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, courseID, profID]);
                     }
                 } else if (currentUserRole === "0") {
                     // Faculty editing their own profile
@@ -303,12 +303,12 @@ module.exports = {
                 return res.status(400).send({ "message": "Admin doesn't exist!" });
             }
 
-            const adminID = adminToDelete[0].profID;
+            const adminEmail = adminToDelete[0].email;
 
             // Update the admin's status to inactive
             await db_connection.query(
-                `UPDATE USERDATA SET isActive = ? WHERE profID = ?`,
-                [0, adminID]
+                `UPDATE USERDATA SET isActive = '0' WHERE email = ? AND userRole = '1' AND isActive = '1'`,
+                [adminEmail]
             );
 
             await db_connection.query(`UNLOCK TABLES`);
@@ -389,12 +389,12 @@ module.exports = {
                 return res.status(400).send({ "message": "Faculty doesn't exist!" });
             }
 
-            const facultyID = faculty[0].profID;
+            const facultyEmail = faculty[0].email;
 
             // Update the faculty's status to inactive
             await db_connection.query(
-                `UPDATE USERDATA SET isActive = ? WHERE profID = ?`,
-                [0, facultyID]
+                `UPDATE USERDATA SET isActive = '0' WHERE email = ? AND userRole = '0' AND isActive = '1'`,
+                [facultyEmail]
             );
 
             await db_connection.query(`UNLOCK TABLES`);
@@ -420,22 +420,22 @@ module.exports = {
 
     addFaculty: [webTokenValidator, async (req, res) => {
         let db_connection;
-        console.log(req)
 
         try {
-            const { userName, newUserEmail, courseName } = req.body;
+            const { userName, newUserEmail, department, courses } = req.body;
 
             if (
-                req.body.newUserEmail === null ||
-                req.body.newUserEmail === undefined ||
-                req.body.newUserEmail === "" ||
-                !validator.isEmail(req.body.newUserEmail) ||
-                req.body.userName === null ||
-                req.body.userName === undefined ||
-                req.body.userName === "" ||
-                req.body.courseName === null ||
-                req.body.courseName === undefined ||
-                req.body.courseName === ""
+                newUserEmail === null ||
+                newUserEmail === undefined ||
+                newUserEmail === "" ||
+                !validator.isEmail(newUserEmail) ||
+                userName === null ||
+                userName === undefined ||
+                userName === "" ||
+                department === null ||
+                department === undefined ||
+                department === "" ||
+                !Array.isArray(courses) || courses.length === 0
             ) {
                 return res.status(400).send({ "message": "Missing details." });
             }
@@ -449,25 +449,11 @@ module.exports = {
             }
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES USERDATA WRITE, course READ');
-
-            // Fetch courseID based on courseName
-            const [courseResult] = await db_connection.query(
-                'SELECT courseID FROM course WHERE courseName = ?',
-                [courseName]
-            );
-
-            if (courseResult.length === 0) {
-                await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "Course not found!" });
-            }
-
-            // Your faculty-specific logic here
-            // For example, you may want to perform additional checks or validations
+            await db_connection.query('LOCK TABLES USERDATA WRITE, ProfCourse WRITE, ClassCourse WRITE, course READ, Department READ');
 
             // Check if the user is already registered
             let [existingUser] = await db_connection.query(
-                'SELECT * from USERDATA WHERE email = ?',
+                'SELECT * FROM USERDATA WHERE email = ?',
                 [newUserEmail]
             );
 
@@ -489,10 +475,20 @@ module.exports = {
             mailer.officialCreated(userName, newUserEmail, hashedPassword);
 
             // Insert the user into the USERDATA table with faculty role ('0' for faculty)
-            await db_connection.query(
-                'INSERT INTO USERDATA (profName, email, password, userRole, courseID, isActive) VALUES (?, ?, ?, ?, ?, "2")',
-                [userName, newUserEmail, hashedPassword, '0', courseResult[0].courseID]
+            const [insertUserResult] = await db_connection.query(
+                'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES(?, ?, ?, 0, 2)',
+                [userName, newUserEmail, hashedPassword]
             );
+
+            const professorID = insertUserResult.insertId;
+
+            // Associate professor with courses in ProfCourse table
+            for (const courseID of courses) {
+                await db_connection.query(
+                    'INSERT INTO ProfCourse (professorID, courseID) VALUES (?, ?)',
+                    [professorID, courseID]
+                );
+            }
 
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
@@ -521,10 +517,8 @@ module.exports = {
         async (req, res) => {
             let db_connection;
 
-            console.log(res)
-
             try {
-                const { userName, newUserEmail, courseName } = req.body;
+                const { userName, newUserEmail } = req.body;
 
                 if (
                     req.body.newUserEmail === null ||
@@ -533,10 +527,7 @@ module.exports = {
                     !validator.isEmail(req.body.newUserEmail) ||
                     req.body.userName === null ||
                     req.body.userName === undefined ||
-                    req.body.userName === "" ||
-                    req.body.courseName === null ||
-                    req.body.courseName === undefined ||
-                    req.body.courseName === ""
+                    req.body.userName === ""
                 ) {
                     return res.status(404).send({ "message": "Missing details." });
                 }
@@ -544,40 +535,16 @@ module.exports = {
                 db_connection = await db.promise().getConnection();
 
                 // Ensure all required fields are defined
-                if (!newUserEmail || !userName || !courseName) {
+                if (!newUserEmail || !userName) {
                     return res.status(400).json({ error: 'All fields are required' });
                 }
 
                 // Lock the necessary tables to prevent concurrent writes
                 await db_connection.query('LOCK TABLES USERDATA WRITE, course READ');
 
-                // Fetch courseID based on courseName
-                const [courseResult] = await db_connection.query(
-                    'SELECT courseID FROM course WHERE courseName = ?',
-                    [courseName]
-                );
-
-                console.log(courseResult[0])
-
-                if (courseResult.length === 0) {
-                    await db_connection.query('UNLOCK TABLES');
-                    return res.status(400).send({ "message": "Course not found!" });
-                }
-
-                // Check if the user is actually an admin
-                // let [admin] = await db_connection.query(
-                //     'SELECT * from USERDATA WHERE email = ? AND userRole = ?',
-                //     [newUserEmail, '1']
-                // );
-
-                // if (admin.length === 0) {
-                //     await db_connection.query('UNLOCK TABLES');
-                //     return res.status(401).send({ "message": "Access Restricted!" });
-                // }
-
                 // Check if the user is already registered
                 let [existingUser] = await db_connection.query(
-                    'SELECT * from USERDATA WHERE email = ?',
+                    'SELECT * FROM USERDATA WHERE email = ?',
                     [newUserEmail]
                 );
 
@@ -600,8 +567,8 @@ module.exports = {
 
                 // Insert the user into the USERDATA table
                 await db_connection.query(
-                    'INSERT INTO USERDATA (profName, email, password, userRole, courseID, isActive) VALUES (?, ?, ?, ?, ?, "2")',
-                    [userName, newUserEmail, hashedPassword, '1', courseResult[0].courseID]
+                    'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES (?, ?, ?, 1, 2)',
+                    [userName, newUserEmail, hashedPassword]
                 );
 
                 // Unlock the tables
@@ -797,7 +764,7 @@ module.exports = {
                 await db_connection.query(`UNLOCK TABLES`);
 
                 const secret_token = await webTokenGenerator({
-                    "email": req.body.email,
+                    "email": req.email,
                     "userRole": user[0].userRole,
                 });
 
@@ -1068,7 +1035,7 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES userdata READ');
 
-            const [rows] = await db_connection.query('SELECT DISTINCT userRole FROM userData WHERE isActive = 2');
+            const [rows] = await db_connection.query('SELECT DISTINCT userRole FROM userData WHERE isActive = 1');
             const userRole = rows.map(row => row.userRole);
 
             res.status(200).json({ userRole: userRole });
@@ -1132,24 +1099,24 @@ module.exports = {
 
             const currentUserRole = currentUser[0].userRole;
 
-            // Fetch courseID based on Dept
-            const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [Dept]);
+            // Fetch DeptID based on Dept
+            const [DeptResult] = await db_connection.query('SELECT DeptID FROM Department WHERE DeptName = ?', [Dept]);
 
-            if (courseResult.length === 0) {
+            if (DeptResult.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "Course not found!" });
+                return res.status(400).send({ "message": "Department not found!" });
             }
 
             // Insert data into class table
             const [classResult] = await db_connection.query(
-                'SELECT * FROM class WHERE batchYear = ? AND Dept = ? AND Section = ? AND courseID = ? AND Semester = ?',
-                [batchYear, Dept, Section, courseResult[0].courseID, Semester]
+                'INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (?, ?, ?, ?)',
+                [batchYear, DeptResult[0].DeptID, Section, Semester]
             );
 
             // Insert data into studentData table
             const [result] = await db_connection.query(
                 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                [RollNo, StdName, classResult.classID]
+                [RollNo, StdName, classResult.insertId]
             );
 
             if (result.affectedRows === 1) {
@@ -1180,6 +1147,82 @@ module.exports = {
     },
     ],
 
+    addStudent: [webTokenValidator, async (req, res) => {
+
+        let db_connection;
+        
+        try {
+            const { RollNo, StdName, batchYear, Dept, Section, Semester } = req.body;
+
+            // Ensure all required fields are defined
+            if (!RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
+                return res.status(400).json({ error: 'All fields are required' });
+            }
+
+            // Validate the RollNo format
+            const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
+            if (!pattern.test(RollNo)) {
+                return res.status(400).json({ error: 'Invalid roll number format' });
+            }
+
+            db_connection = await db_connection.promise().getConnection();
+            await db_connection.query('START TRANSACTION');
+
+            // Fetch userRole based on currentUserEmail
+            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [req.userEmail]);
+
+            if (currentUser.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Current user not found' });
+            }
+
+            const currentUserRole = currentUser[0].userRole;
+
+            // Fetch DeptID based on Dept
+            const [DeptResult] = await db_connection.query('SELECT * FROM Department WHERE DeptName = ?', [Dept]);
+
+            if (DeptResult.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(400).send({ "message": "Department not found!" });
+            }
+
+            // Insert data into class table
+            const [classResult] = await db_connection.query(
+                'INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (?, ?, ?, ?)',
+                [batchYear, DeptResult[0].DeptID, Section, Semester]
+            );
+
+            // Insert data into studentData table
+            const [result] = await db_connection.query(
+                'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
+                [RollNo, StdName, classResult.insertId]
+            );
+
+            if (result.affectedRows === 1) {
+                await db_connection.query('COMMIT');
+                res.status(201).json({ message: 'Student added successfully' });
+            } else {
+                await db_connection.query('ROLLBACK');
+                res.status(500).json({ error: 'Failed to add student' });
+            }
+        } catch (error) {
+            console.error(error);
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+
+            // Logging and error handling
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addStudent - ${error}\n`);
+
+            res.status(500).json({ error: 'Failed to add student' });
+        } finally {
+            if (db_connection) {
+                db_connection.release();
+            }
+        }
+    }],
+
     editStudent: [webTokenValidator, async (req, res) => {
         // Edit student details
         /*
@@ -1207,15 +1250,12 @@ module.exports = {
             }
 
             const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
-            if (pattern.test(RollNo)) {
-                // Roll number is in the correct format
-            } else {
-                // Roll number format is incorrect
+            if (!pattern.test(RollNo)) {
                 return res.status(400).json({ error: 'Invalid roll number format' });
             }
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class READ');
+            await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, ProfessorClass READ');
 
             // Fetch userRole based on currentUserEmail
             const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
@@ -1228,7 +1268,7 @@ module.exports = {
             const currentUserRole = currentUser[0].userRole;
 
             // Get classID based on batchYear, Section, Dept, and Semester
-            const [classResult] = await db_connection.query('SELECT classID FROM class WHERE batchYear = ? AND Section = ? AND Dept = ? AND Semester = ?', [batchYear, Section, Dept, Semester]);
+            const [classResult] = await db_connection.query('SELECT classID FROM class WHERE batchYear = ? AND Section = ? AND DeptID = ? AND Semester = ?', [batchYear, Section, Dept, Semester]);
 
             if (classResult.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
@@ -1439,10 +1479,10 @@ module.exports = {
         try {
             const { batchYear, dept, section, semester } = req.body;
 
-            console.log(batchYear)
-            console.log(dept)
-            console.log(section)
-            console.log(semester)
+            console.log(batchYear);
+            console.log(dept);
+            console.log(section);
+            console.log(semester);
             console.log('Received Parameters:', req.body);
 
             // Validate that all required parameters are present
@@ -1457,17 +1497,17 @@ module.exports = {
             await dbConnection.query('LOCK TABLES studentData s READ, class c READ');
 
             const [rows] = await dbConnection.query(
-                'SELECT s.* FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.Dept = ? AND c.Section = ? AND c.Semester = ?',
+                'SELECT s.* FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.DeptID = ? AND c.Section = ? AND c.Semester = ?',
                 [1, batchYear, dept, section, semester]
             );
 
-            console.log(rows)
+            console.log(rows);
 
             res.status(200).json({ students: rows });
         } catch (error) {
             console.error(error);
             const time = new Date();
-            await fs.appendFile('logs/errorLogs.txt', `${time.toISOString()} - allStudents - ${error}\n`);
+            await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - allStudents - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch students' });
         } finally {
             // Unlock the tables even if an error occurs
@@ -1535,7 +1575,7 @@ module.exports = {
                     return res.status(400).json({ error: 'Invalid roll number format' });
                 }
 
-                await db_connection.query('LOCK TABLES userData s WRITE');
+                await db_connection.query('LOCK TABLES USERDATA WRITE, class WRITE, studentData WRITE, course READ');
 
                 // Fetch userRole based on currentUserEmail
                 const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
@@ -1547,7 +1587,7 @@ module.exports = {
 
                 const currentUserRole = currentUser[0].userRole;
 
-                // Fetch courseID based on Dept
+                // Fetch courseID based on courseName
                 const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [courseName]);
 
                 if (courseResult.length === 0) {
@@ -1557,7 +1597,7 @@ module.exports = {
 
                 // Insert data into class table
                 const [classResult] = await db_connection.query(
-                    'INSERT INTO class (batchYear, Dept, Section, courseID, Semester) VALUES (?, ?, ?, ?, ?)',
+                    'INSERT INTO class (batchYear, DeptID, Section, courseID, Semester) VALUES (?, ?, ?, ?, ?)',
                     [batchYear, Dept, Section, courseResult[0].courseID, Semester]
                 );
 
@@ -1587,7 +1627,7 @@ module.exports = {
             }
 
             const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addStudents - ${error}\n`);
+            await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - addStudents - ${error}\n`);
 
             res.status(500).json({ error: 'Failed to add students' });
         } finally {
@@ -1595,7 +1635,7 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },],
+    }], 
 
     fetchStudentData: [webTokenValidator, async (req, res) => {
         let db_connection;
@@ -1606,11 +1646,17 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES studentData s READ , class c READ');
+            await db_connection.query('LOCK TABLES studentData s READ, class c READ');
 
-            const [rows] = await db_connection.query('SELECT s.RollNo, s.StdName, c.batchYear, c.Dept, c.semester, c.section FROM studentData s join class c on s.classID = c.classID WHERE s.RollNo = ?', [studentRollNo]);
+            const [rows] = await db_connection.query(
+                'SELECT s.RollNo, s.StdName, c.batchYear, c.DeptID, c.Semester, c.Section ' +
+                'FROM studentData s ' +
+                'JOIN class c ON s.classID = c.classID ' +
+                'WHERE s.RollNo = ?',
+                [studentRollNo]
+            );
 
-            console.log(rows)
+            console.log(rows);
 
             if (rows.length > 0) {
                 const studentData = rows[0];

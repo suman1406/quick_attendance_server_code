@@ -14,37 +14,55 @@ CREATE TABLE IF NOT EXISTS course (
     isActive CHAR(1) NOT NULL DEFAULT '1',
     UNIQUE (courseName)
 );
--- Create the USERDATA table
+
+CREATE TABLE IF NOT EXISTS Department (
+    DeptID INT AUTO_INCREMENT PRIMARY KEY,
+    DeptName VARCHAR(255) NOT NULL,
+    isActive CHAR(1) NOT NULL DEFAULT '1',
+    UNIQUE (DeptName)
+);
+
 CREATE TABLE IF NOT EXISTS USERDATA (
     profID INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     profName VARCHAR(255) NOT NULL,
     userRole CHAR(1) NOT NULL,
-    isActive CHAR(1) NOT NULL DEFAULT '2',
-    courseID INT,
-    FOREIGN KEY (courseID) REFERENCES course(courseID)
+    isActive CHAR(1) NOT NULL DEFAULT '2'
 );
--- Create the class table
+
 CREATE TABLE IF NOT EXISTS class (
     classID INT AUTO_INCREMENT PRIMARY KEY,
     batchYear INT NOT NULL,
-    Dept VARCHAR(255) NOT NULL,
+    DeptID INT NOT NULL,
     Section VARCHAR(10) NOT NULL,
-    courseID INT,
     Semester INT NOT NULL,
     isActive CHAR(1) NOT NULL DEFAULT '1',
     UNIQUE INDEX (classID),
-    FOREIGN KEY (courseID) REFERENCES course(courseID)
+    FOREIGN KEY (DeptID) REFERENCES Department(DeptID)
 );
--- Create the ProfessorClass table for the many-to-many relationship
+
 CREATE TABLE IF NOT EXISTS ProfessorClass (
     professorID INT,
     classID INT,
     FOREIGN KEY (professorID) REFERENCES USERDATA(profID),
     FOREIGN KEY (classID) REFERENCES class(classID)
 );
--- Create the studentData table
+
+CREATE TABLE IF NOT EXISTS ProfCourse (
+    professorID INT,
+    courseID INT,
+    FOREIGN KEY (professorID) REFERENCES USERDATA(profID),
+    FOREIGN KEY (courseID) REFERENCES course(courseID)
+);
+
+CREATE TABLE IF NOT EXISTS ClassCourse (
+    courseID INT,
+    classID INT,
+    FOREIGN KEY (courseID) REFERENCES course(courseID),
+    FOREIGN KEY (classID) REFERENCES class(classID)
+);
+
 CREATE TABLE IF NOT EXISTS studentData (
     RollNo VARCHAR(20) PRIMARY KEY,
     StdName VARCHAR(255) NOT NULL,
@@ -52,7 +70,7 @@ CREATE TABLE IF NOT EXISTS studentData (
     isActive CHAR(1) NOT NULL DEFAULT '1',
     FOREIGN KEY (classID) REFERENCES class(classID)
 );
--- Create the Slots table
+
 CREATE TABLE IF NOT EXISTS Slots (
     slotID INT AUTO_INCREMENT PRIMARY KEY,
     classID INT,
@@ -60,7 +78,7 @@ CREATE TABLE IF NOT EXISTS Slots (
     isActive CHAR(1) NOT NULL DEFAULT '1',
     FOREIGN KEY (classID) REFERENCES class(classID)
 );
--- Create the attendance table
+
 CREATE TABLE IF NOT EXISTS attendance (
     RollNo VARCHAR(20),
     attdStatus CHAR(1) NOT NULL,
@@ -70,7 +88,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     FOREIGN KEY (RollNo) REFERENCES studentData(RollNo),
     FOREIGN KEY (slotID) REFERENCES Slots(slotID)
 );
--- Create the userregister table
+
 CREATE TABLE IF NOT EXISTS USERREGISTER (
     id INT NOT NULL AUTO_INCREMENT,
     email VARCHAR(255) NOT NULL,
@@ -78,237 +96,230 @@ CREATE TABLE IF NOT EXISTS USERREGISTER (
     createdAt TIMESTAMP NOT NULL,
     PRIMARY KEY (id)
 );
--- Insert sample data into the course table
-INSERT INTO course (courseName)
-VALUES ('Computer Science'),
-    ('Mathematics'),
-    ('Physics'),
-    ('Biology'),
-    ('History'),
-    ('English'),
-    ('Chemistry'),
-    ('Artificial Intelligence'),
-    ('Economics'),
-    ('Psychology'),
-    ('Sociology'),
-    ('Mechanical Engineering'),
-    ('Electrical Engineering'),
-    ('Medicine'),
-    ('Law'),
-    ('Business Administration'),
-    ('Political Science'),
-    ('Environmental Science'),
-    ('Information Technology'),
-    ('Data Science');
--- Insert sample data into the USERDATA table
-INSERT INTO USERDATA (email, password, profName, userRole, courseID)
-VALUES (
-        'saisimhadri2207@gmail.com',
-        'goodluck',
-        'Prasad S',
-        '0',
-        1
-    ),
-    (
-        'prof2@example.com',
-        'password456',
-        'Professor Johnson',
-        '0',
-        2
-    ),
-    (
-        'admin@example.com',
-        'adminpass',
-        'Administrator',
-        '1',
-        NULL
-    ),
-    (
-        'psuman045@gmail.com',
-        'goodluck',
-        'Professor White',
-        '0',
-        3
-    ),
-    (
-        'prof4@example.com',
-        'password987',
-        'Professor Black',
-        '0',
-        4
-    ),
-    (
-        'prof5@example.com',
-        'password654',
-        'Professor Green',
-        '0',
-        5
-    ),
-    (
-        'prof6@example.com',
-        'password321',
-        'Professor Red',
-        '0',
-        6
-    ),
-    (
-        'prof7@example.com',
-        'password012',
-        'Professor Blue',
-        '0',
-        7
-    ),
-    (
-        'prof8@example.com',
-        'password876',
-        'Professor Yellow',
-        '0',
-        8
-    ),
-    (
-        'prof9@example.com',
-        'password543',
-        'Professor Orange',
-        '0',
-        9
-    ),
-    (
-        'manojsubbareddysabbella259@gmail.com',
-        'password',
-        'Manoj',
-        '1',
-        9
-    ),
-    (
-        'psuman1406@gmail.com',
-        'goodluck',
-        'Suman',
-        '1',
-        9
-    );
--- Insert sample data into the class table
-INSERT INTO class (batchYear, Dept, Section, courseID, Semester)
-VALUES (2023, 'Computer Science', 'A', 1, 1),
-    (2023, 'Mathematics', 'B', 2, 1),
-    (2023, 'Physics', 'C', 3, 1),
-    (2023, 'Biology', 'D', 4, 1),
-    (2023, 'History', 'E', 5, 1),
-    (2023, 'English', 'F', 6, 1),
-    (2023, 'Chemistry', 'G', 7, 1),
-    (2023, 'Artificial Intelligence', 'H', 8, 1),
-    (2023, 'Economics', 'I', 9, 1),
-    (2023, 'Psychology', 'J', 10, 1),
-    (2023, 'Sociology', 'A', 11, 2),
-    (2023, 'Mechanical Engineering', 'B', 12, 2),
-    (2023, 'Electrical Engineering', 'C', 13, 2),
-    (2023, 'Medicine', 'D', 14, 2),
-    (2023, 'Law', 'E', 15, 2),
-    (2023, 'Business Administration', 'F', 16, 2),
-    (2023, 'Political Science', 'G', 17, 2),
-    (2023, 'Environmental Science', 'H', 18, 2),
-    (2023, 'Information Technology', 'I', 19, 2);
-INSERT INTO ProfessorClass (professorID, classID)
-VALUES (1, 1),
-    -- Professor Prasad S for Computer Science, Section A
-    (2, 2),
-    -- Professor Professor Johnson for Mathematics, Section B
-    (3, 3),
-    -- Professor Professor White for Physics, Section C
-    -- Add more entries as needed
-    (12, 4),
-    (12, 3);
--- Insert sample data into the studentData table
-INSERT INTO studentData (RollNo, StdName, classID)
-VALUES ('CB.EN.U4CSE22401', 'John Doe', 1),
-    ('CB.EN.U4CSE22402', 'Jane Doe', 2),
-    ('CB.EN.U4CSE22403', 'Bob Smith', 3),
-    ('CB.EN.U4CSE22404', 'Alice Johnson', 4),
-    ('CB.EN.U4CSE22405', 'Charlie White', 5),
-    ('CB.EN.U4CSE22406', 'David Black', 6),
-    ('CB.EN.U4CSE22407', 'Eva Green', 7),
-    ('CB.EN.U4CSE22408', 'Frank Red', 8),
-    ('CB.EN.U4CSE22409', 'Grace Blue', 9),
-    ('CB.EN.U4CSE22410', 'Henry Yellow', 10);
--- Insert sample data into the Slots table
-INSERT INTO Slots (classID, periodNo)
-VALUES (1, 1),
-    (2, 2),
-    (3, 3),
-    (4, 4),
-    (5, 5),
-    (6, 6),
-    (7, 7),
-    (8, 8),
-    (9, 9),
-    (10, 10),
-    (11, 1),
-    (12, 2),
-    (13, 3),
-    (14, 4),
-    (15, 5),
-    (16, 6),
-    (17, 7),
-    (18, 8),
-    (19, 9);
--- Insert sample data into the attendance table
-INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID)
-VALUES (
-        'CB.EN.U4CSE22401',
-        '1',
-        '2023-01-01 08:00:00',
-        1
-    ),
-    (
-        'CB.EN.U4CSE22402',
-        '1',
-        '2023-01-01 09:00:00',
-        2
-    ),
-    (
-        'CB.EN.U4CSE22403',
-        '1',
-        '2023-01-01 10:00:00',
-        3
-    ),
-    (
-        'CB.EN.U4CSE22404',
-        '1',
-        '2023-01-01 11:00:00',
-        4
-    ),
-    (
-        'CB.EN.U4CSE22405',
-        '1',
-        '2023-01-01 12:00:00',
-        5
-    ),
-    (
-        'CB.EN.U4CSE22406',
-        '1',
-        '2023-01-01 13:00:00',
-        6
-    ),
-    (
-        'CB.EN.U4CSE22407',
-        '1',
-        '2023-01-01 14:00:00',
-        7
-    ),
-    (
-        'CB.EN.U4CSE22408',
-        '1',
-        '2023-01-01 15:00:00',
-        8
-    ),
-    (
-        'CB.EN.U4CSE22409',
-        '1',
-        '2023-01-01 16:00:00',
-        9
-    ),
-    (
-        'CB.EN.U4CSE22410',
-        '1',
-        '2023-01-01 17:00:00',
-        10
-    );
+
+
+INSERT INTO course (courseName) VALUES ('Mathematics');
+INSERT INTO course (courseName) VALUES ('Social Studies');
+INSERT INTO course (courseName) VALUES ('Data Structures and Algorithms');
+INSERT INTO course (courseName) VALUES ('Computer Architecture');
+INSERT INTO course (courseName) VALUES ('Physics');
+INSERT INTO course (courseName) VALUES ('Chemistry');
+INSERT INTO course (courseName) VALUES ('Biology');
+INSERT INTO course (courseName) VALUES ('History');
+INSERT INTO course (courseName) VALUES ('Geography');
+INSERT INTO course (courseName) VALUES ('Computer Science');
+INSERT INTO course (courseName) VALUES ('Artificial Intelligence');
+INSERT INTO course (courseName) VALUES ('Economics');
+INSERT INTO course (courseName) VALUES ('Psychology');
+INSERT INTO course (courseName) VALUES ('Sociology');
+INSERT INTO course (courseName) VALUES ('Political Science');
+INSERT INTO course (courseName) VALUES ('Environmental Science');
+INSERT INTO course (courseName) VALUES ('English Literature');
+INSERT INTO course (courseName) VALUES ('Digital Marketing');
+INSERT INTO course (courseName) VALUES ('Finance');
+INSERT INTO course (courseName) VALUES ('Human Resource Management');
+
+
+INSERT INTO Department (DeptName) VALUES ('Computer Science');
+INSERT INTO Department (DeptName) VALUES ('Electrical Engineering');
+INSERT INTO Department (DeptName) VALUES ('Mechanical Engineering');
+INSERT INTO Department (DeptName) VALUES ('Civil Engineering');
+INSERT INTO Department (DeptName) VALUES ('Chemical Engineering');
+INSERT INTO Department (DeptName) VALUES ('Biomedical Engineering');
+INSERT INTO Department (DeptName) VALUES ('Aerospace Engineering');
+INSERT INTO Department (DeptName) VALUES ('Industrial Engineering');
+INSERT INTO Department (DeptName) VALUES ('Software Engineering');
+INSERT INTO Department (DeptName) VALUES ('Data Science');
+INSERT INTO Department (DeptName) VALUES ('Information Technology');
+INSERT INTO Department (DeptName) VALUES ('Computer Engineering');
+INSERT INTO Department (DeptName) VALUES ('Environmental Engineering');
+INSERT INTO Department (DeptName) VALUES ('Petroleum Engineering');
+INSERT INTO Department (DeptName) VALUES ('Materials Science');
+INSERT INTO Department (DeptName) VALUES ('Nuclear Engineering');
+INSERT INTO Department (DeptName) VALUES ('Robotics');
+INSERT INTO Department (DeptName) VALUES ('Biotechnology');
+INSERT INTO Department (DeptName) VALUES ('Telecommunication Engineering');
+
+INSERT INTO USERDATA (email, password, profName, userRole) VALUES
+('prof1@example.com', 'password1', 'Professor 1', '0'),
+('prof2@example.com', 'password2', 'Professor 2', '0'),
+('prof3@example.com', 'password3', 'Professor 3', '0'),
+('staff1@example.com', 'password4', 'Staff 1', '0'),
+('staff2@example.com', 'password5', 'Staff 2', '0'),
+('student1@example.com', 'password6', 'Student 1', '0'),
+('student2@example.com', 'password7', 'Student 2', '0'),
+('student3@example.com', 'password8', 'Student 3', '0'),
+('admin@example.com', 'adminpass', 'Administrator', 'A'),
+('guest@example.com', 'guestpass', 'Guest', '0'),
+('demo@example.com', 'demopass', 'Demo User', '0'),
+('test@example.com', 'testpass', 'Test User', '0'),
+('teacher1@example.com', 'teacherpass1', 'Teacher 1', '0'),
+('teacher2@example.com', 'teacherpass2', 'Teacher 2', '0'),
+('teacher3@example.com', 'teacherpass3', 'Teacher 3', '0'),
+('teacher4@example.com', 'teacherpass4', 'Teacher 4', '0'),
+('teacher5@example.com', 'teacherpass5', 'Teacher 5', '0'),
+('teacher6@example.com', 'teacherpass6', 'Teacher 6', '1'),
+('teacher7@example.com', 'teacherpass7', 'Teacher 7', '1'),
+('teacher8@example.com', 'teacherpass8', 'Teacher 8', '1'),
+('teacher9@example.com', 'teacherpass9', 'Teacher 9', '1'),
+('teacher10@example.com', 'teacherpass10', 'Teacher 10', '1'),
+('psuman1406@gmail.com', 'goodluck', 'P Suman', '1');
+
+
+
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2022, 1, 'A', 1);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2022, 2, 'B', 1);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2023, 3, 'C', 1);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2023, 1, 'A', 2);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2024, 2, 'B', 2);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2024, 3, 'C', 2);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2025, 1, 'A', 3);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2025, 2, 'B', 3);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2026, 3, 'C', 3);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2026, 1, 'A', 4);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2027, 2, 'B', 4);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2027, 3, 'C', 4);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2028, 1, 'A', 5);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2028, 2, 'B', 5);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2029, 3, 'C', 5);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2029, 1, 'A', 6);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2030, 2, 'B', 6);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2030, 3, 'C', 6);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2031, 1, 'A', 7);
+INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (2031, 2, 'B', 7);
+
+
+INSERT INTO ProfessorClass (professorID, classID) VALUES (1, 1);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (2, 2);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (3, 3);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (4, 4);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (5, 5);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (6, 6);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (7, 7);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (8, 8);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (9, 9);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (10, 10);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (11, 11);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (12, 12);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (13, 13);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (14, 14);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (15, 15);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (16, 16);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (17, 17);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (18, 18);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (19, 19);
+INSERT INTO ProfessorClass (professorID, classID) VALUES (20, 20);
+
+
+INSERT INTO ProfCourse (professorID, courseID) VALUES (1, 1);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (2, 2);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (3, 3);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (4, 4);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (5, 5);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (6, 6);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (7, 7);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (8, 8);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (9, 9);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (10, 10);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (11, 11);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (12, 12);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (13, 13);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (14, 14);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (15, 15);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (16, 16);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (17, 17);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (18, 18);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (19, 19);
+INSERT INTO ProfCourse (professorID, courseID) VALUES (20, 20);
+
+
+-- Insert Statements for the `ClassCourse` Table
+INSERT INTO ClassCourse (courseID, classID) VALUES (1, 1);
+INSERT INTO ClassCourse (courseID, classID) VALUES (2, 2);
+INSERT INTO ClassCourse (courseID, classID) VALUES (3, 3);
+INSERT INTO ClassCourse (courseID, classID) VALUES (4, 4);
+INSERT INTO ClassCourse (courseID, classID) VALUES (5, 5);
+INSERT INTO ClassCourse (courseID, classID) VALUES (6, 1);
+INSERT INTO ClassCourse (courseID, classID) VALUES (7, 2);
+INSERT INTO ClassCourse (courseID, classID) VALUES (8, 3);
+INSERT INTO ClassCourse (courseID, classID) VALUES (9, 4);
+INSERT INTO ClassCourse (courseID, classID) VALUES (10, 5);
+INSERT INTO ClassCourse (courseID, classID) VALUES (11, 1);
+INSERT INTO ClassCourse (courseID, classID) VALUES (12, 2);
+INSERT INTO ClassCourse (courseID, classID) VALUES (13, 3);
+INSERT INTO ClassCourse (courseID, classID) VALUES (14, 4);
+INSERT INTO ClassCourse (courseID, classID) VALUES (15, 5);
+INSERT INTO ClassCourse (courseID, classID) VALUES (16, 1);
+INSERT INTO ClassCourse (courseID, classID) VALUES (17, 2);
+INSERT INTO ClassCourse (courseID, classID) VALUES (18, 3);
+INSERT INTO ClassCourse (courseID, classID) VALUES (19, 4);
+INSERT INTO ClassCourse (courseID, classID) VALUES (20, 5);
+
+
+-- Insert Statements for the `studentData` Table
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A001', 'Student 1', 1);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A002', 'Student 2', 2);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A003', 'Student 3', 3);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A004', 'Student 4', 4);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A005', 'Student 5', 5);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A006', 'Student 6', 1);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A007', 'Student 7', 2);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A008', 'Student 8', 3);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A009', 'Student 9', 4);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A010', 'Student 10', 5);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A011', 'Student 11', 1);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A012', 'Student 12', 2);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A013', 'Student 13', 3);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A014', 'Student 14', 4);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A015', 'Student 15', 5);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A016', 'Student 16', 1);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A017', 'Student 17', 2);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A018', 'Student 18', 3);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A019', 'Student 19', 4);
+INSERT INTO studentData (RollNo, StdName, classID) VALUES ('A020', 'Student 20', 5);
+
+
+-- Insert Statements for the `Slots` Table
+INSERT INTO Slots (classID, periodNo) VALUES (1, 1);
+INSERT INTO Slots (classID, periodNo) VALUES (2, 2);
+INSERT INTO Slots (classID, periodNo) VALUES (3, 3);
+INSERT INTO Slots (classID, periodNo) VALUES (4, 4);
+INSERT INTO Slots (classID, periodNo) VALUES (5, 5);
+INSERT INTO Slots (classID, periodNo) VALUES (1, 2);
+INSERT INTO Slots (classID, periodNo) VALUES (2, 3);
+INSERT INTO Slots (classID, periodNo) VALUES (3, 4);
+INSERT INTO Slots (classID, periodNo) VALUES (4, 5);
+INSERT INTO Slots (classID, periodNo) VALUES (5, 1);
+INSERT INTO Slots (classID, periodNo) VALUES (1, 3);
+INSERT INTO Slots (classID, periodNo) VALUES (2, 4);
+INSERT INTO Slots (classID, periodNo) VALUES (3, 5);
+INSERT INTO Slots (classID, periodNo) VALUES (4, 1);
+INSERT INTO Slots (classID, periodNo) VALUES (5, 2);
+INSERT INTO Slots (classID, periodNo) VALUES (1, 4);
+INSERT INTO Slots (classID, periodNo) VALUES (2, 5);
+INSERT INTO Slots (classID, periodNo) VALUES (3, 1);
+INSERT INTO Slots (classID, periodNo) VALUES (4, 2);
+INSERT INTO Slots (classID, periodNo) VALUES (5, 3);
+
+
+-- Insert Statements for the `attendance` Table
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A001', 'P', '2023-01-01 08:00:00', 1);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A002', 'A', '2023-01-01 10:00:00', 2);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A003', 'P', '2023-01-01 12:00:00', 3);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A004', 'A', '2023-01-01 14:00:00', 4);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A005', 'P', '2023-01-01 16:00:00', 5);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A006', 'A', '2023-01-01 09:00:00', 1);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A007', 'P', '2023-01-01 11:00:00', 2);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A008', 'A', '2023-01-01 13:00:00', 3);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A009', 'P', '2023-01-01 15:00:00', 4);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A010', 'A', '2023-01-01 17:00:00', 5);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A011', 'P', '2023-01-01 10:30:00', 1);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A012', 'A', '2023-01-01 12:30:00', 2);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A013', 'P', '2023-01-01 14:30:00', 3);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A014', 'A', '2023-01-01 16:30:00', 4);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A015', 'P', '2023-01-01 18:30:00', 5);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A016', 'A', '2023-01-01 11:30:00', 1);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A017', 'P', '2023-01-01 13:30:00', 2);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A018', 'A', '2023-01-01 15:30:00', 3);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A019', 'P', '2023-01-01 17:30:00', 4);
+INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES ('A020', 'A', '2023-01-01 19:30:00', 5);
