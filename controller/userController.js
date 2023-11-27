@@ -1108,11 +1108,11 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
                 return res.status(400).send({ "message": "Class not found!" });
             }
-            
+            console.log(classResult)
             // Insert data into studentData table
             const [result] = await db_connection.query(
                 'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                [RollNo, StdName, classResult.insertId]
+                [RollNo, StdName, classResult[0].classID]
             );
 
             if (result.affectedRows === 1) {
@@ -1410,12 +1410,25 @@ module.exports = {
 
             dbConnection = await db.promise().getConnection();
 
+            await dbConnection.query('LOCK TABLES studentData s READ, class c READ, department d READ');
+            const [DeptResult] = await dbConnection.query('SELECT * FROM Department d WHERE d.DeptName = ?', [dept]);
+            if (DeptResult.length === 0) {
+                return res.status(400).send({ "message": "Department not found!" });
+            }
+
+            const [classResult] = await dbConnection.query(
+                'SELECT c.classID from class c where c.batchYear = ? AND c.DeptID = ? AND c.Section = ? AND c.Semester = ?',
+                [batchYear, DeptResult[0].DeptID, section, semester]
+            );
+            if(classResult.length==0){
+                return res.status(400).send({ "message": "Class not found!" });
+            }
+
             // Lock the necessary tables to prevent concurrent writes
-            await dbConnection.query('LOCK TABLES studentData s READ, class c READ');
 
             const [rows] = await dbConnection.query(
-                'SELECT s.* FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.DeptID = ? AND c.Section = ? AND c.Semester = ?',
-                [1, batchYear, dept, section, semester]
+                'SELECT * FROM studentData s JOIN class c ON s.classID = c.classID WHERE s.isActive = ? AND c.batchYear = ? AND c.DeptID = ? AND c.Section = ? AND c.Semester = ?',
+                [1, batchYear, DeptResult[0].DeptID, section, semester]
             );
 
             console.log(rows);
@@ -1563,12 +1576,12 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES studentData s READ, class c READ');
+            await db_connection.query('LOCK TABLES studentData s READ, class c READ, Department d READ');
 
             const [rows] = await db_connection.query(
-                'SELECT s.RollNo, s.StdName, c.batchYear, c.DeptID, c.Semester, c.Section ' +
-                'FROM studentData s ' +
-                'JOIN class c ON s.classID = c.classID ' +
+                'SELECT s.RollNo, s.StdName, c.batchYear, d.DeptName, c.Semester, c.Section ' +
+                'FROM (studentData s ' +
+                'JOIN class c ON s.classID = c.classID) JOIN Department d ON d.DeptID = c.DeptID ' +
                 'WHERE s.RollNo = ?',
                 [studentRollNo]
             );
