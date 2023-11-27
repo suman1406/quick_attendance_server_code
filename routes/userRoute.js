@@ -55,6 +55,11 @@ router.delete('/delete-course', userWebController.deleteCourse); //done
 router.get('/all-courses', userWebController.allCourses);
 router.get('/my-courses', userWebController.myCourses);
 
+//Department routes
+router.post('/add-dept',userWebController.createDept);
+router.delete('/delete-dept',userWebController.deleteDept);
+router.get('/all-dept',userWebController.allDepts)
+
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);
 router.post('/attendance/:id/:date', userWebController.updateAttendanceStatus);

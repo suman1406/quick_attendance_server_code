@@ -18,10 +18,11 @@ async function tokenValidator(req, res, next) {
     try {
         const payLoad = await verify(token, public_key);
         if (payLoad["secret_key"] == secret_key) {
-            console.log(payLoad)
             req.authorization_tier = payLoad["userRole"];
-            req.userEmail = payLoad["email"];
+            req.userEmail = payLoad["userEmail"];
             req.userRole = payLoad["userRole"];
+            req.exp = payLoad["exp"];
+            console.log(req.exp)
 
             next();
             return;
