@@ -764,7 +764,7 @@ module.exports = {
                 await db_connection.query(`UNLOCK TABLES`);
 
                 const secret_token = await webTokenGenerator({
-                    "email": req.email,
+                    "userEmail": req.email,
                     "userRole": user[0].userRole,
                 });
 
@@ -2504,6 +2504,8 @@ module.exports = {
             await db_connection.query('LOCK TABLES department WRITE, userdata READ');
 
             const userEmail = req.userEmail;
+
+            console.log(userEmail)
 
             // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
