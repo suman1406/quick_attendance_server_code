@@ -380,7 +380,7 @@ module.exports = {
 
             // Check if faculty exists
             let [faculty] = await db_connection.query(
-                `SELECT profID, profName, userRole FROM USERDATA WHERE email = ? AND userRole = ?`,
+                `SELECT profID, profName, userRole FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = 1`,
                 [req.body.Email, "0"]
             );
 
