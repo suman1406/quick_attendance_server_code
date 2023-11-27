@@ -290,12 +290,17 @@ module.exports = {
             // }
 
             // Check if admin exists
-            let [adminToDelete] = await db_connection.query(
-                `SELECT profID, profName, email, userRole FROM USERDATA WHERE profName = ? AND isActive = ? AND userRole = ?`,
-                [req.body.adminProfName, "2", "1"]
+            let [adminToDelete1] = await db_connection.query(
+                `SELECT * FROM USERDATA WHERE email = ? AND isActive = ? AND userRole = ?`,
+                [req.body.Email, "1", "1"]
             );
 
-            if (adminToDelete.length === 0) {
+            let [adminToDelete2] = await db_connection.query(
+                `SELECT * FROM USERDATA WHERE email = ? AND isActive = ? AND userRole = ?`,
+                [req.body.Email, "2", "1"]
+            );
+
+            if (adminToDelete1.length === 0 || adminToDelete2 === 0 ) {
                 await db_connection.query(`UNLOCK TABLES`);
                 return res.status(400).send({ "message": "Admin doesn't exist!" });
             }
@@ -417,7 +422,7 @@ module.exports = {
         let db_connection;
 
         try {
-            const { userName, newUserEmail, courses } = req.body;
+            const { userName, newUserEmail } = req.body;
 
             if (
                 newUserEmail === null ||
@@ -426,8 +431,7 @@ module.exports = {
                 !validator.isEmail(newUserEmail) ||
                 userName === null ||
                 userName === undefined ||
-                userName === "" ||
-                !Array.isArray(courses) || courses.length === 0
+                userName === ""
             ) {
                 console.log(userName, newUserEmail, courses)
                 return res.status(400).send({ "message": "Missing details." });
