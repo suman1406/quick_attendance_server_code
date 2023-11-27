@@ -420,7 +420,7 @@ module.exports = {
         let db_connection;
 
         try {
-            const { userName, newUserEmail, department, courses } = req.body;
+            const { userName, newUserEmail, courses } = req.body;
 
             if (
                 newUserEmail === null ||
@@ -430,12 +430,9 @@ module.exports = {
                 userName === null ||
                 userName === undefined ||
                 userName === "" ||
-                department === null ||
-                department === undefined ||
-                department === "" ||
                 !Array.isArray(courses) || courses.length === 0
             ) {
-                console.log(userName, newUserEmail, department, courses)
+                console.log(userName, newUserEmail, courses)
                 return res.status(400).send({ "message": "Missing details." });
             }
 
@@ -1058,103 +1055,12 @@ module.exports = {
 
     // -----------------------Student Operations Start---------------------------
 
+
     addStudent: [webTokenValidator, async (req, res) => {
-        /*
-            JSON
-            {
-                "RollNo": "<RollNo>",
-                "StdName": "<StdName>",
-                "batchYear": "<batchYear>",
-                "Dept": "<Dept>",
-                "Section": "<Section>",
-                "Semester": "<Semester>"
-            }
-        */
 
         let db_connection;
-
         try {
-            const { RollNo, StdName, batchYear, Dept, Section, Semester } = req.body;
-
             db_connection = await db.promise().getConnection();
-
-            // Ensure all required fields are defined
-            if (!RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
-                return res.status(400).json({ error: 'All fields are required' });
-            }
-
-            // Validate the RollNo format
-            const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
-            if (!pattern.test(RollNo)) {
-                return res.status(400).json({ error: 'Invalid roll number format' });
-            }
-
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, course READ');
-
-            // Fetch userRole based on currentUserEmail
-            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [req.userEmail]);
-
-            if (currentUser.length === 0) {
-                await db_connection.query('UNLOCK TABLES');
-                return res.status(404).json({ error: 'Current user not found' });
-            }
-
-            const currentUserRole = currentUser[0].userRole;
-
-            // Fetch DeptID based on Dept
-            const [DeptResult] = await db_connection.query('SELECT DeptID FROM Department WHERE DeptName = ?', [Dept]);
-
-            if (DeptResult.length === 0) {
-                await db_connection.query('UNLOCK TABLES');
-                return res.status(400).send({ "message": "Department not found!" });
-            }
-
-            // Insert data into class table
-            const [classResult] = await db_connection.query(
-                'INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (?, ?, ?, ?)',
-                [batchYear, DeptResult[0].DeptID, Section, Semester]
-            );
-
-            // Insert data into studentData table
-            const [result] = await db_connection.query(
-                'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                [RollNo, StdName, classResult.insertId]
-            );
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Student added successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to add student' });
-            }
-        } catch (error) {
-            console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
-
-            const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - addStudent - ${error}\n`);
-
-            res.status(500).json({ error: 'Failed to add student' });
-        } finally {
-            // Unlock the tables and release the database connection
-            await db_connection.query('UNLOCK TABLES');
-            db_connection.release();
-        }
-    },
-    ],
-
-    addStudent: [webTokenValidator, async (req, res) => {
-
-        let db_connection;
-        
-        try {
             const { RollNo, StdName, batchYear, Dept, Section, Semester } = req.body;
 
             // Ensure all required fields are defined
@@ -1168,7 +1074,6 @@ module.exports = {
                 return res.status(400).json({ error: 'Invalid roll number format' });
             }
 
-            db_connection = await db_connection.promise().getConnection();
             await db_connection.query('START TRANSACTION');
 
             // Fetch userRole based on currentUserEmail
@@ -1191,9 +1096,13 @@ module.exports = {
 
             // Insert data into class table
             const [classResult] = await db_connection.query(
-                'INSERT INTO class (batchYear, DeptID, Section, Semester) VALUES (?, ?, ?, ?)',
+                'SELECT classID from class where batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ?',
                 [batchYear, DeptResult[0].DeptID, Section, Semester]
             );
+            if(classResult.length==0){
+                await db_connection.query('ROLLBACK');
+                return res.status(400).send({ "message": "Class not found!" });
+            }
 
             // Insert data into studentData table
             const [result] = await db_connection.query(
