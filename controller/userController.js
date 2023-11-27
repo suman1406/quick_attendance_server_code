@@ -690,7 +690,7 @@ module.exports = {
                 }
                 else {
                     await db_connection.query(`UNLOCK TABLES`);
-                    return res.status(401).send({ "message": "Access Restricted." });
+                    return res.status(403).send({ "message": "Access Restricted." });
                 }
 
 
@@ -815,7 +815,7 @@ module.exports = {
 
             if (professor.length === 0) {
                 await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ message: "Professor doesn't exist!" });
+                return res.status(403).send({ message: "Professor doesn't exist!" });
             }
 
             if (professor[0].isActive === "0") {
@@ -923,7 +923,7 @@ module.exports = {
 
             if (storedOTP !== req.body.otp || currentTimestamp - otpCreatedAt > otpValidityWindow) {
                 await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ message: "Invalid OTP." });
+                return res.status(400).send({ message: "Invalid OTP." });
             }
 
             await db_connection.query(`UNLOCK TABLES`);
@@ -985,7 +985,7 @@ module.exports = {
 
             if (professor.length === 0) {
                 await db_connection.query(`UNLOCK TABLES`);
-                return res.status(401).send({ message: "Professor doesn't exist!" });
+                return res.status(403).send({ message: "Professor doesn't exist!" });
             }
 
             if (professor[0].isActive === "0") {
