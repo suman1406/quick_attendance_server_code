@@ -178,10 +178,8 @@ module.exports = {
                     const profID = professor[0].profID;
 
                     if (password) {
-                        const salt = crypto.randomBytes(16).toString('hex');
-                        const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-
-                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and password = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, hashedPassword, profID, courseID]);
+                        const passwordHashed = crypto.createHash('sha256').update(password).digest('hex');
+                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and password = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, passwordHashed, profID, courseID]);
                     } else {
                         [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, courseID, profID]);
                     }
@@ -203,10 +201,9 @@ module.exports = {
                     const courseID = course[0].courseID;
 
                     if (password) {
-                        const salt = crypto.randomBytes(16).toString('hex');
-                        const hashedPassword = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+                        const passwordHashed = crypto.createHash('sha256').update(password).digest('hex');
 
-                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE email = ? AND isActive = 1', [profName, email, hashedPassword, courseID, currentUserEmail]);
+                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE email = ? AND isActive = 1', [profName, email, passwordHashed, courseID, currentUserEmail]);
                     } else {
                         [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE email = ? AND isActive = 1', [profName, email, courseID, currentUserEmail]);
                     }
@@ -464,16 +461,16 @@ module.exports = {
                 characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
             });
 
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
+            
+            const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
 
             // Email the password to the user.
-            mailer.officialCreated(userName, newUserEmail, hashedPassword);
+            mailer.officialCreated(userName, newUserEmail, memberPassword);
 
             // Insert the user into the USERDATA table with faculty role ('0' for faculty)
             const [insertUserResult] = await db_connection.query(
                 'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES(?, ?, ?, 0, 2)',
-                [userName, newUserEmail, hashedPassword]
+                [userName, newUserEmail, passwordHashed]
             );
 
             const professorID = insertUserResult.insertId;
@@ -559,8 +556,8 @@ module.exports = {
                     characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
                 });
 
-                const salt = crypto.randomBytes(16).toString('hex');
-                const hashedPassword = crypto.pbkdf2Sync(memberPassword, salt, 10000, 64, 'sha512').toString('hex');
+                
+                const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
 
                 // Email the password to the user.
                 mailer.officialCreated(userName, newUserEmail, memberPassword);
@@ -568,7 +565,7 @@ module.exports = {
                 // Insert the user into the USERDATA table
                 await db_connection.query(
                     'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES (?, ?, ?, 1, 2)',
-                    [userName, newUserEmail, hashedPassword]
+                    [userName, newUserEmail, passwordHashed]
                 );
 
                 // Unlock the tables
@@ -620,9 +617,11 @@ module.exports = {
         let db_connection = await db.promise().getConnection();
 
         try {
+            
             await db_connection.query(`LOCK TABLES USERDATA READ`);
+            const passwordHashed = crypto.createHash('sha256').update(req.body.password).digest('hex');
 
-            let [user] = await db_connection.query(`SELECT * FROM USERDATA WHERE email = ? AND password = ?`, [req.body.email, req.body.password]);
+            let [user] = await db_connection.query(`SELECT * FROM USERDATA WHERE email = ? AND password = ?`, [req.body.email, passwordHashed]);
 
             if (user.length > 0) {
 
@@ -758,8 +757,9 @@ module.exports = {
                     await db_connection.query(`UNLOCK TABLES`);
                     return res.status(400).send({ "message": "Invalid Email." }); //bad req 400
                 }
-
-                await db_connection.query(`UPDATE USERDATA SET password = ?, isActive = '1' WHERE email = ?`, [req.body.password, req.email]);
+                
+                const passwordHashed = crypto.createHash('sha256').update(req.body.password).digest('hex');
+                await db_connection.query(`UPDATE USERDATA SET password = ?, isActive = '1' WHERE email = ?`, [passwordHashed, req.email]);
 
                 await db_connection.query(`UNLOCK TABLES`);
 

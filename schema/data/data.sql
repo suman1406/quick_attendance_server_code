@@ -141,6 +141,8 @@ INSERT INTO Department (DeptName) VALUES ('Biotechnology');
 INSERT INTO Department (DeptName) VALUES ('Telecommunication Engineering');
 
 INSERT INTO USERDATA (email, password, profName, userRole) VALUES
+('thanuskumaara@gmail.com','2a27ad2744e860e4dcf47b191a2afb795abc2bc800a8833f73d90f50ffa69383','Thanus Kumaar','1'),
+('psuman1406@gmail.com', '735701f285cb9253fcff9649a0f7a09f27e5b5967030ded8baba4c5731683636', 'P Suman', '1'),
 ('prof1@example.com', 'password1', 'Professor 1', '0'),
 ('prof2@example.com', 'password2', 'Professor 2', '0'),
 ('prof3@example.com', 'password3', 'Professor 3', '0'),
@@ -162,9 +164,7 @@ INSERT INTO USERDATA (email, password, profName, userRole) VALUES
 ('teacher7@example.com', 'teacherpass7', 'Teacher 7', '1'),
 ('teacher8@example.com', 'teacherpass8', 'Teacher 8', '1'),
 ('teacher9@example.com', 'teacherpass9', 'Teacher 9', '1'),
-('teacher10@example.com', 'teacherpass10', 'Teacher 10', '1'),
-('thanuskumaara@gmail.com','THANUSqa','Thanus Kumaar','1'),
-('psuman1406@gmail.com', 'goodluck', 'P Suman', '1');
+('teacher10@example.com', 'teacherpass10', 'Teacher 10', '1');
 
 
 
