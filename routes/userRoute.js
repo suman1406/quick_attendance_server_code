@@ -63,8 +63,9 @@ router.delete('/delete-dept', userWebController.deleteDept);
 router.get('/all-dept', userWebController.allDepts)
 
 //many to many operation routes
-router.post('/add-prof-course',userWebController.addProfCourse);
-router.post('/add-class-course-prof',userWebController.addClassCourseProf)
+router.post('/add-prof-course', userWebController.addProfCourse);
+router.post('/add-class-course-prof', userWebController.addClassCourseProf);
+router.delete('/delete-prof-course', userWebController.deleteProfCourse);
 
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);

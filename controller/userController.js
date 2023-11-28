@@ -3046,6 +3046,97 @@ module.exports = {
         }
     }],
 
+    deleteProfCourse: [webTokenValidator, async (req,res)=>{
+        /*
+        
+        */
+        let db_connection;
+
+        try {
+            const { profEmail,courses } = req.body;
+            db_connection = await db.promise().getConnection();
+            console.log(profEmail,courses)
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
+    
+            const userEmail = req.userEmail;
+            console.log(userEmail)
+    
+            // Fetch userRole based on the email and check if user is active
+            const [userData] = await db_connection.query(`
+            SELECT userRole
+            FROM USERDATA
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
+            if (userData.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            const placeholders = courses.map(() => '?').join(', '); // Generate placeholders like (?, ?)
+            const query = `
+                SELECT courseID
+                FROM Course
+                WHERE courseName IN (${placeholders}) AND isActive = '1'
+            `;
+            const [courseData] = await db_connection.query(query, courses);
+
+            console.log(courseData)
+            if (courseData.length != courses.length) {
+                return res.status(404).json({ error: 'Course not found or inactive' });
+            }
+            const [profData] = await db_connection.query(`
+            SELECT ProfID
+            FROM UserData
+            WHERE email = ? AND isActive = '1'
+            `, [profEmail]);
+            
+            console.log(profData)
+            if (profData.length === 0) {
+                return res.status(404).json({ error: 'Professor email entered was not found or inactive' });
+            }
+    
+            const userRole = userData[0].userRole;
+    
+            if (userRole != 0 && userRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
+            }
+
+            await db_connection.query('START TRANSACTION');
+
+            let deletedCourses = 0;
+            for (i of courseData){
+                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                if (available.length === 1) {
+                    const [result] = await db_connection.query('DELETE FROM ProfCourse WHERE professorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                    if (result.affectedRows === 1) {
+                        deletedCourses+=1;
+                    } else {
+                        // Rollback the transaction
+                        await db_connection.query('ROLLBACK');
+                        return res.status(500).json({ error: 'Failed to delete courses' });
+                    }
+                }
+            }
+            if(deletedCourses<=courseData.length){
+                await db_connection.query('COMMIT');
+                return res.status(201).json({message: 'Courses deleted successfully'});
+            }
+
+        }catch(error){
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            // const time = new Date();
+            // fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - add Prof Course - ${error}\n`);
+            res.status(500).json({ error: 'Failed to create Courses for professor' });
+        }finally{
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    }],
+
     addClassCourseProf: [webTokenValidator, async (req, res)=>{
         /*
             JSON
