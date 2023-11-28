@@ -1721,7 +1721,6 @@ module.exports = {
                 "Dept": "<Dept>",
                 "Section": "<Section>",
                 "Semester": "<Semester>",
-                "courseName": "<courseName>",
             }
         */
 
@@ -1731,14 +1730,14 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES class WRITE, course READ, ProfessorClass WRITE, USERDATA READ');
+            await db_connection.query('LOCK TABLES class WRITE, USERDATA READ, Department READ');
 
             const isActive = '1'; // Assuming isActive is a CHAR(1) field
 
             const userEmail = req.userEmail;
 
             // Find the current user's role based on email
-            const [userRoleResult] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ?', [userEmail]);
+            const [userRoleResult] = await db_connection.query("SELECT * FROM USERDATA WHERE email = ? AND isActive = '1'", [userEmail]);
 
             if (userRoleResult.length === 0) {
                 // Rollback the transaction
@@ -1755,50 +1754,27 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester, courseName } = req.body;
+            const { batchYear, Dept, Section, Semester} = req.body;
 
-            // Find courseID based on courseName
-            const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [courseName]);
-
-            if (courseResult.length === 0) {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                return res.status(400).json({ error: 'Course not found' });
+            //Check if Dept is available
+            const [deptData] = await db_connection.query(`
+            SELECT DeptID
+            FROM department
+            WHERE DeptName = ? AND isActive = '1'
+            `, [Dept]);
+            console.log(deptData)
+            if (deptData.length === 0) {
+                return res.status(404).json({ error: 'Department entered was not found or inactive' });
             }
 
-            const courseID = courseResult[0].courseID;
-
-            let profResult;
             console.log(currentUserRole)
-
-            [profResult] = await db_connection.query('SELECT * FROM USERDATA WHERE email = ? AND userRole = ? AND isActive = ?', [userEmail, 1, 1]);
-
-
-            console.log('#########' + profResult)
-
-            if (profResult.length === 0) {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                return res.status(400).json({ error: 'Professor not found or inactive' });
-            }
-
-            const profID = profResult[0].profID;
 
             // Insert class into class table
             const [classResult] = await db_connection.query(
-                'INSERT INTO class (batchYear, Dept, Section, Semester, courseID, isActive) VALUES (?, ?, ?, ?, ?, ?)',
-                [batchYear, Dept, Section, Semester, courseID, isActive]
+                'INSERT INTO class (batchYear, DeptID, Section, Semester, isActive) VALUES (?, ?, ?, ?, ?)',
+                [batchYear, deptData[0].DeptID, Section, Semester, 1]
             );
-
             if (classResult.affectedRows === 1) {
-                const classID = classResult.insertId;
-
-                // Insert professor and class association into ProfessorClass table
-                await db_connection.query(
-                    'INSERT INTO ProfessorClass (professorID, classID) VALUES (?, ?)',
-                    [profID, classID]
-                );
-
                 // Commit the transaction
                 await db_connection.query('COMMIT');
                 res.status(201).json({ message: 'Class created successfully' });
