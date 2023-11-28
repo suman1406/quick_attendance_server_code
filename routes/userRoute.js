@@ -17,6 +17,7 @@ router.delete('/delete-admin/', userWebController.deleteAdmin); //done
 // Faculty routes
 router.post('/add-faculty', userWebController.addFaculty); //done
 router.delete('/delete-faculty/', userWebController.deleteFaculty); //done
+router.get('/all-profs',userWebController.getAllProfEmails);
 
 // Common route
 router.put('/edit-user', userWebController.editUser); //done

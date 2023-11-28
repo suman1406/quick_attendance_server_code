@@ -115,6 +115,71 @@ module.exports = {
     },
     ],
 
+    getAllProfEmails: [webTokenValidator, async (req, res) => {
+        /*
+        Headers: {
+            "Authorization": "Bearer <SECRET_TOKEN>"
+        }
+        */
+
+        let db_connection = await db.promise().getConnection();
+
+        console.log(req.userEmail)
+
+        if (
+            req.userEmail === null ||
+            req.userEmail === undefined ||
+            req.userEmail === ""
+        ) {
+            db_connection.release();
+            return res.status(400).send({ "message": "Invalid User or Inactive User!" });
+        } else {
+            try {
+                // Lock necessary tables before executing any query
+                await db_connection.query('LOCK TABLES USERDATA READ');
+
+                // Check if the user making the request is an admin
+                const [admin] = await db_connection.query(
+                    `SELECT * from USERDATA WHERE email = ? AND userRole = ?`,
+                    [req.userEmail, "1"]
+                );
+
+                await db_connection.query('UNLOCK TABLES');
+
+                if (admin.length === 0) {
+                    db_connection.release();
+                    return res.status(401).send({ "message": "Access Restricted!" });
+                }
+
+                await db_connection.query('LOCK TABLES USERDATA u READ');
+                const [users] = await db_connection.query(
+                    `SELECT u.email FROM USERDATA u WHERE u.isActive = '1'`, 
+                );
+                console.log(users)
+                await db_connection.query('UNLOCK TABLES');
+
+                if (users.length === 0) {
+                    db_connection.release();
+                    return res.status(200).send({ "message": "No users found!", "users": [] });
+                }
+                return res.status(200).send({ "message": "Users fetched!", "profs": users });
+            } catch (err) {
+                console.log(err);
+                const time = new Date();
+                fs.appendFileSync(
+                    "logs/errorLogs.txt",
+                    `${time.toISOString()} - getAllUsers - ${err}\n`
+                );
+                return res.status(500).send({ "message": "Internal Server Error." });
+            } finally {
+                // Always unlock the tables in the finally block
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+            }
+        }
+    },
+    ],
+
     editUser: [webTokenValidator, async (req, res) => {
         /*
         Headers: {
