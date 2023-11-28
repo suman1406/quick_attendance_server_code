@@ -300,7 +300,7 @@ module.exports = {
                 [req.body.Email, "2", "1"]
             );
 
-            if (adminToDelete1.length === 0 || adminToDelete2 === 0 ) {
+            if (adminToDelete1.length === 0 || adminToDelete2 === 0) {
                 await db_connection.query(`UNLOCK TABLES`);
                 return res.status(400).send({ "message": "Admin doesn't exist!" });
             }
@@ -465,7 +465,7 @@ module.exports = {
                 characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
             });
 
-            
+
             const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
 
             // Email the password to the user.
@@ -482,7 +482,7 @@ module.exports = {
             // Associate professor with courses in ProfCourse table
             for (const course of courses) {
                 let [courseID] = await db_connection.query(
-                    'SELECT CourseID from Course where CourseName = ?',[course]          
+                    'SELECT CourseID from Course where CourseName = ?', [course]
                 )
                 console.log(courseID[0].CourseID)
                 await db_connection.query(
@@ -560,7 +560,7 @@ module.exports = {
                     characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
                 });
 
-                
+
                 const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
 
                 // Email the password to the user.
@@ -593,6 +593,58 @@ module.exports = {
         },
     ],
 
+    fetchUserData: [webTokenValidator, async (req, res) => {
+        /*
+        query
+        {
+            "userEmail": "<userEmail>"
+        }
+        */
+
+        let dbConnection;
+
+        try {
+            const { userEmail } = req.query;
+
+            // Validate that userEmail is present
+            if (userEmail === undefined) {
+                console.error('userEmail is undefined');
+                return res.status(400).json({ error: 'userEmail is required' });
+            }
+
+            dbConnection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await dbConnection.query('LOCK TABLES USERDATA READ');
+
+            const [rows] = await dbConnection.query(
+                'SELECT profName, email, userRole, isActive FROM USERDATA WHERE email = ?',
+                [userEmail]
+            );
+
+            console.log(rows);
+
+            if (rows.length > 0) {
+                const userData = rows[0];
+
+                res.status(200).json({ user: userData });
+            } else {
+                res.status(404).json({ error: 'User not found' });
+            }
+        } catch (error) {
+            console.error(error);
+            const time = new Date();
+            await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - fetchUserData - ${error}\n`);
+            res.status(500).json({ error: 'Failed to fetch user data' });
+        } finally {
+            // Unlock the tables even if an error occurs
+            if (dbConnection) {
+                await dbConnection.query('UNLOCK TABLES');
+                dbConnection.release();
+            }
+        }
+    }],
+
     // -----------------------User Operations End---------------------------
 
     // -----------------------Authentication Operations Start-----------------
@@ -621,7 +673,7 @@ module.exports = {
         let db_connection = await db.promise().getConnection();
 
         try {
-            
+
             await db_connection.query(`LOCK TABLES USERDATA READ`);
             const passwordHashed = crypto.createHash('sha256').update(req.body.password).digest('hex');
 
@@ -761,7 +813,7 @@ module.exports = {
                     await db_connection.query(`UNLOCK TABLES`);
                     return res.status(400).send({ "message": "Invalid Email." }); //bad req 400
                 }
-                
+
                 const passwordHashed = crypto.createHash('sha256').update(req.body.password).digest('hex');
                 await db_connection.query(`UPDATE USERDATA SET password = ?, isActive = '1' WHERE email = ?`, [passwordHashed, req.email]);
 
@@ -1087,9 +1139,9 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
                 return res.status(404).json({ error: 'Current user not found' });
             }
-            
-            const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?',[RollNo])
-            if(StudentPresent.length!=0){
+
+            const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?', [RollNo])
+            if (StudentPresent.length != 0) {
                 return res.status(500).json({ error: 'Student already present' });
             }
 
@@ -1108,7 +1160,7 @@ module.exports = {
                 'SELECT classID from class where batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ?',
                 [batchYear, DeptResult[0].DeptID, Section, Semester]
             );
-            if(classResult.length==0){
+            if (classResult.length == 0) {
                 await db_connection.query('ROLLBACK');
                 return res.status(400).send({ "message": "Class not found!" });
             }
@@ -1170,10 +1222,10 @@ module.exports = {
                 return res.status(400).json({ error: 'All fields are required' });
             }
 
-            const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
-            if (!pattern.test(RollNo)) {
-                return res.status(400).json({ error: 'Invalid roll number format' });
-            }
+            // const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
+            // if (!pattern.test(RollNo)) {
+            //     return res.status(400).json({ error: 'Invalid roll number format' });
+            // }
 
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, ProfessorClass READ, Department READ');
@@ -1430,7 +1482,7 @@ module.exports = {
                 'SELECT c.classID from class c where c.batchYear = ? AND c.DeptID = ? AND c.Section = ? AND c.Semester = ?',
                 [batchYear, DeptResult[0].DeptID, section, semester]
             );
-            if(classResult.length==0){
+            if (classResult.length == 0) {
                 return res.status(400).send({ "message": "Class not found!" });
             }
 
@@ -1460,59 +1512,59 @@ module.exports = {
 
     addStudents: [webTokenValidator, async (req, res) => {
         let db_connection;
-    
+
         try {
             const students = req.body;
-    
+
             db_connection = await db.promise().getConnection();
-    
+
             // Begin a transaction
             await db_connection.beginTransaction();
             let currentUserEmail = req.userEmail
             for (const student of students) {
                 const { RollNo, StdName, batchYear, Dept, Section, Semester } = student;
-    
+
                 // Ensure all required fields are defined
                 if (!RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
                     await db_connection.rollback();
                     return res.status(400).json({ error: 'All fields are required' });
                 }
-    
+
                 // Validate the RollNo format
                 const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
                 if (!pattern.test(RollNo)) {
                     await db_connection.rollback();
                     return res.status(400).json({ error: 'Invalid roll number format' });
                 }
-    
+
                 // Fetch userRole based on currentUserEmail
                 const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
-    
+
                 if (currentUser.length === 0) {
                     await db_connection.rollback();
                     return res.status(404).json({ error: 'Current user not found' });
                 }
-    
+
                 // Fetch courseID based on courseName
                 const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [courseName]);
-    
+
                 if (courseResult.length === 0) {
                     await db_connection.rollback();
                     return res.status(400).send({ "message": "Course not found!" });
                 }
-    
+
                 // Insert data into class table
                 const [classResult] = await db_connection.query(
                     'INSERT INTO class (batchYear, DeptID, Section, courseID, Semester) VALUES (?, ?, ?, ?, ?)',
                     [batchYear, Dept, Section, courseResult[0].courseID, Semester]
                 );
-    
+
                 // Insert data into studentData table
                 const [result] = await db_connection.query(
                     'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
                     [RollNo, StdName, classResult.insertId]
                 );
-    
+
                 if (result.affectedRows !== 1) {
                     await db_connection.rollback();
                     return res.status(500).json({ error: `Failed to add student: ${RollNo}` });
@@ -1521,7 +1573,7 @@ module.exports = {
                     console.log(`Student added successfully: ${RollNo}`);
                 }
             }
-    
+
             // Commit the transaction
             await db_connection.query('COMMIT');
             res.status(201).json({ message: 'Students added successfully' });
@@ -1531,10 +1583,10 @@ module.exports = {
             if (db_connection) {
                 await db_connection.rollback();
             }
-    
+
             const time = new Date();
             await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - addStudents - ${error}\n`);
-    
+
             res.status(500).json({ error: 'Failed to add students' });
         } finally {
             // Release the database connection
@@ -1543,7 +1595,7 @@ module.exports = {
             }
         }
     }],
-     
+
 
     fetchStudentData: [webTokenValidator, async (req, res) => {
         let db_connection;
@@ -2532,7 +2584,7 @@ module.exports = {
             await db_connection.query('START TRANSACTION');
 
             const { deptName } = req.body;
-            
+
             const [result] = await db_connection.query('INSERT INTO department (DeptName, isActive) VALUES (?, ?)', [deptName, 1]);
 
             if (result.affectedRows === 1) {
@@ -2597,7 +2649,7 @@ module.exports = {
             const userRole = userData[0].userRole;
 
             if (userRole != 0 && userRole != 1) {
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.'});
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
             }
 
             const [deptData] = await db_connection.query(`
