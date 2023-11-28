@@ -63,6 +63,7 @@ router.get('/all-dept', userWebController.allDepts)
 
 //many to many operation routes
 router.post('/add-prof-course',userWebController.addProfCourse);
+router.post('/add-class-course-prof',userWebController.addClassCourseProf)
 
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);
