@@ -21,6 +21,7 @@ router.delete('/delete-faculty/', userWebController.deleteFaculty); //done
 // Common route
 router.put('/edit-user', userWebController.editUser); //done
 router.get('/users/all', userWebController.getAllUsers); //done
+router.get('/fetchUser', userWebController.fetchUserData); //done
 
 // Password reset routes
 router.post('/forgot-password', userWebController.forgotPassword); //done
@@ -56,9 +57,9 @@ router.get('/all-courses', userWebController.allCourses);
 router.get('/my-courses', userWebController.myCourses);
 
 //Department routes
-router.post('/add-dept',userWebController.createDept);
-router.delete('/delete-dept',userWebController.deleteDept);
-router.get('/all-dept',userWebController.allDepts)
+router.post('/add-dept', userWebController.createDept);
+router.delete('/delete-dept', userWebController.deleteDept);
+router.get('/all-dept', userWebController.allDepts)
 
 //many to many operation routes
 router.post('/add-prof-course',userWebController.addProfCourse);
