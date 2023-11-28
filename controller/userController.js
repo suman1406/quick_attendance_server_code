@@ -2828,4 +2828,102 @@ module.exports = {
 
     // -------------------Attendance Operations Ends----------------------------
 
+    // -------------------Many-to-Many Operations Starts------------------------
+
+    addProfCourse: [webTokenValidator, async (req, res)=>{
+        /*
+            JSON
+            {
+                "profEmail": "<profemail>"
+                "courses": "[<course1>, <course2>]"
+            }
+        */
+        let db_connection;
+
+        try {
+            const { profEmail,courses } = req.body;
+            db_connection = await db.promise().getConnection();
+            console.log(profEmail,courses)
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
+    
+            const userEmail = req.userEmail;
+            console.log(userEmail)
+    
+            // Fetch userRole based on the email and check if user is active
+            const [userData] = await db_connection.query(`
+            SELECT userRole
+            FROM USERDATA
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
+            if (userData.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+            
+            // Fetch Courses passed as params and check if all are already present or is active
+            const placeholders = courses.map(() => '?').join(', '); // Generate placeholders like (?, ?)
+
+            const query = `
+                SELECT courseID
+                FROM Course
+                WHERE courseName IN (${placeholders}) AND isActive = '1'
+            `;
+            const [courseData] = await db_connection.query(query, courses);
+
+            console.log(courseData)
+            if (courseData.length != courses.length) {
+                return res.status(404).json({ error: 'Course not found or inactive' });
+            }
+
+            // Fetch Prof email passed as param and check if that email is present or is active
+            const [profData] = await db_connection.query(`
+            SELECT ProfID
+            FROM UserData
+            WHERE email = ? AND isActive = '1'
+            `, [profEmail]);
+            
+            console.log(profData)
+            if (profData.length === 0) {
+                return res.status(404).json({ error: 'Professor email entered was not found or inactive' });
+            }
+    
+            const userRole = userData[0].userRole;
+    
+            if (userRole != 0 && userRole != 1) {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
+            }
+
+            await db_connection.query('START TRANSACTION');
+
+            let addedCourses = 0;
+            for (i of courseData){
+                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                if (available.length === 0) {
+                    const [result] = await db_connection.query('INSERT INTO ProfCourse (professorID, CourseID) VALUES (?, ?)', [profData[0].ProfID, i.courseID]);
+                    if (result.affectedRows === 1) {
+                        addedCourses+=1;
+                    } else {
+                        // Rollback the transaction
+                        await db_connection.query('ROLLBACK');
+                        res.status(500).json({ error: 'Failed to create courses' });
+                    }
+                }
+            }
+            if(addedCourses <= courseData.length){
+                await db_connection.query('COMMIT');
+                res.status(201).json({ message: 'Courses created successfully' });
+            }
+
+        }catch(error){
+                console.log(error)
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    }],
+
+    // -------------------Many-to-Many Operations Ends--------------------------
+
 };
