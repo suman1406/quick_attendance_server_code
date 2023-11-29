@@ -13,6 +13,7 @@ router.get('/allUserRoles', userWebController.allUserRoles);
 // Admin routes
 router.post('/add-admin', userWebController.addAdmin); //done
 router.delete('/delete-admin/', userWebController.deleteAdmin); //done
+router.post('/activate-user', userWebController.activateUser);
 
 // Faculty routes
 router.post('/add-faculty', userWebController.addFaculty); //done
