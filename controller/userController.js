@@ -2571,7 +2571,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES department WRITE, userdata READ');
+            await db_connection.query('LOCK TABLES department WRITE, USERDATA READ');
 
             const userEmail = req.userEmail;
             const deptName = req.body.deptName;
