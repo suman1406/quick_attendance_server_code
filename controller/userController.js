@@ -1987,7 +1987,7 @@ module.exports = {
 
             // Delete class from class table
             const [classResult] = await db_connection.query(
-                'DELETE FROM class WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
+                'UPDATE class SET isActtive=0 WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
                 [batchYear, deptData[0].DeptID, Section, Semester, 1]
             );
             if (classResult.affectedRows === 1) {
@@ -2401,66 +2401,66 @@ module.exports = {
         try {
             db_connection = await db.promise().getConnection();
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES course WRITE, userdata READ');
-
             const userEmail = req.userEmail;
             const courseName = req.body.courseName;
+            
+            await db_connection.query('LOCK TABLES course WRITE, userdata READ, classCourse WRITE, ProfCourse WRITE');
 
-            // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
-            SELECT userRole
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
-
+                SELECT userRole
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-
+    
             const userRole = userData[0].userRole;
-
-            if (userRole != 0 && userRole != 1) {
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete courses.' });
+    
+            if (userRole !== '0' && userRole !== '1') {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
             }
-
-            // Fetch courseID based on courseName
+    
             const [courseData] = await db_connection.query(`
-            SELECT courseID
-            FROM course
-            WHERE courseName = ? AND isActive = '1'
-        `, [courseName]);
-
+                SELECT courseID
+                FROM Course
+                WHERE CourseName = ? AND isActive = '1'
+            `, [courseName]);
+    
             if (courseData.length === 0) {
                 return res.status(404).json({ error: 'Course not found or inactive' });
             }
-
             const courseID = courseData[0].courseID;
-
-            // Start a transaction
+    
             await db_connection.query('START TRANSACTION');
-
-            const [result] = await db_connection.query('UPDATE course SET isActive = ? WHERE courseID = ?', [0, courseID]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'Course deleted successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(404).json({ error: 'Course not found' });
-            }
+    
+            // Remove entries from ClassCourse related to this course
+            await db_connection.query(`
+                DELETE FROM classCourse
+                WHERE courseID = ?
+            `, [courseID]);
+    
+            // Remove entries from ClassCourse related to this course
+            await db_connection.query(`
+                DELETE FROM ProfCourse
+                WHERE courseID = ?
+            `, [courseID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
+            // Deactivate the department
+            await db_connection.query('UPDATE Course SET isActive = ? WHERE courseID = ?', ['0', courseID]);
+            res.json({ message: 'Course and associated data deactivated successfully' });
         } catch (error) {
             console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
+            await db_connection.query('ROLLBACK');
             const time = new Date();
             fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteCourse - ${error}\n`);
-            res.status(500).json({ error: 'Failed to delete course' });
-        } finally {
+            res.status(500).json({ error: 'Failed to delete course and associated data' });
+        }
+        finally{
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
@@ -2640,81 +2640,93 @@ module.exports = {
     },],
 
     deleteDept: [webTokenValidator, async (req, res) => {
-        /*
-            JSON
-            {
-                "deptName": "<deptName>"
-            }
-        */
-
         let db_connection;
-
         try {
             db_connection = await db.promise().getConnection();
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES department WRITE, USERDATA READ');
-
             const userEmail = req.userEmail;
             const deptName = req.body.deptName;
+            
+            await db_connection.query('LOCK TABLES department WRITE, userdata READ, Class WRITE, StudentData WRITE, Slots WRITE, ProfessorClass WRITE, CLassCourse WRITE');
 
-            // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
-            SELECT userRole
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
-
+                SELECT userRole
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-
+    
             const userRole = userData[0].userRole;
-
-            if (userRole != 0 && userRole != 1) {
+    
+            if (userRole !== '0' && userRole !== '1') {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
             }
-
+    
             const [deptData] = await db_connection.query(`
-            SELECT DeptID
-            FROM department
-            WHERE deptName = ? AND isActive = '1'`, [deptName]);
-
+                SELECT DeptID
+                FROM Department
+                WHERE DeptName = ? AND isActive = '1'
+            `, [deptName]);
+    
             if (deptData.length === 0) {
                 return res.status(404).json({ error: 'Department not found or inactive' });
             }
             const deptID = deptData[0].DeptID;
-
-            // Start a transaction
+    
             await db_connection.query('START TRANSACTION');
-
-            const [result] = await db_connection.query('UPDATE department SET isActive = ? WHERE deptID = ?', [0, deptID]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'department deleted successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(404).json({ error: 'department not found' });
-            }
+    
+            // Deactivate classes related to the department
+            await db_connection.query('UPDATE class SET isActive = ? WHERE DeptID = ?', ['0', deptID]);
+    
+            // Deactivate students related to classes in this department
+            await db_connection.query(`
+                UPDATE studentData
+                SET isActive = '0'
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Deactivate slots related to classes in this department
+            await db_connection.query(`
+                UPDATE Slots
+                SET isActive = '0'
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Remove entries from ProfessorClass related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ProfessorClass
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Remove entries from ClassCourse related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ClassCourse
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
+            // Deactivate the department
+            await db_connection.query('UPDATE Department SET isActive = ? WHERE DeptID = ?', ['0', deptID]);
+            res.json({ message: 'Department and associated data deactivated successfully' });
         } catch (error) {
             console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
+            await db_connection.query('ROLLBACK');
             const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deletedept - ${error}\n`);
-            res.status(500).json({ error: 'Failed to delete dept' });
-        } finally {
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteDept - ${error}\n`);
+            res.status(500).json({ error: 'Failed to delete department and associated data' });
+        }
+        finally{
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },],
-
+    }],
+    
     allDepts: [webTokenValidator, async (req, res) => {
         let db_connection;
 
