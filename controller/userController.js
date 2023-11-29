@@ -198,15 +198,13 @@ module.exports = {
 
         try {
             const currentUserEmail = req.userEmail;
-            const userEmail = req.body.email;
-            const { profName, email, password, courseName } = req.body;
-
+            const {profName, email} = req.body;
+            console.log(currentUserEmail,profName,email)
             // Lock the necessary tables to prevent concurrent writes
             db_connection = await db.promise().getConnection();
-            await db_connection.query('LOCK TABLES USERDATA WRITE, COURSE READ');
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
 
-            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
-
+            const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ? and isActive=1', [currentUserEmail]);
             if (currentUser.length === 0) {
                 await db_connection.query(`UNLOCK TABLES`);
                 return res.status(404).json({ error: 'Current user not found' });
@@ -216,75 +214,34 @@ module.exports = {
 
             // Start a transaction
             await db_connection.query('START TRANSACTION');
-
             try {
-                let result;
-
                 if (currentUserRole === "1") {
-                    // Admin editing user
-                    const [course] = await db_connection.query('SELECT courseID FROM COURSE WHERE courseName = ?', [courseName]);
-
-                    if (course.length === 0) {
-                        // If the course does not exist, you may want to handle this case appropriately.
-                        await db_connection.query('ROLLBACK');
-                        return res.status(404).json({ error: 'Course not found' });
-                    }
-
-                    const courseID = course[0].courseID;
-
-                    const [professor] = await db_connection.execute(`SELECT * FROM USERDATA WHERE email = ? AND isActive = 1`, [userEmail]);
-
-                    if (professor.length === 0) {
+                    const [professor] = await db_connection.execute(`SELECT * FROM USERDATA WHERE email = ? AND isActive = 1`, [email]);
+                    console.log(professor)
+                    if (professor.length == 0) {
                         // Handle the case where no active professor is found with the given email
                         await db_connection.query('ROLLBACK');
-                        return res.status(404).json({ error: 'Active Professor not found' });
+                        return res.status(404).json({ error: 'Professor email not found' });
                     }
 
                     const profID = professor[0].profID;
-
-                    if (password) {
-                        const passwordHashed = crypto.createHash('sha256').update(password).digest('hex');
-                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and password = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, passwordHashed, profID, courseID]);
+                    const [result] = await db_connection.query('UPDATE USERDATA SET profName = ? WHERE profID = ?', [profName, profID]);
+                    if (result.affectedRows === 1) {
+                        // Commit the transaction
+                        await db_connection.query('COMMIT');
+                        res.json({ message: 'User profile updated successfully' });
                     } else {
-                        [result] = await db_connection.query('UPDATE USERDATA u JOIN ProfCourse pc ON u.profID = pc.professorID SET u.profName = ? and  u.email = ? and u.courseID = pc.courseID WHERE u.profID = ? AND pc.courseID = ?', [profName, userEmail, courseID, profID]);
+                        // Rollback the transaction
+                        await db_connection.query('ROLLBACK');
+                        res.status(404).json({ error: 'User not found' });
                     }
+                
                 } else if (currentUserRole === "0") {
                     // Faculty editing their own profile
-                    if (userEmail != currentUserEmail) {
-                        // Faculty can only edit their own profile
-                        return res.status(403).json({ error: 'Permission denied. Faculty can only edit their own profile.' });
-                    }
-
-                    const [course] = await db_connection.query('SELECT courseID FROM COURSE WHERE courseName = ?', [courseName]);
-
-                    if (course.length === 0) {
-                        // If the course does not exist, you may want to handle this case appropriately.
-                        await db_connection.query('ROLLBACK');
-                        return res.status(404).json({ error: 'Course not found' });
-                    }
-
-                    const courseID = course[0].courseID;
-
-                    if (password) {
-                        const passwordHashed = crypto.createHash('sha256').update(password).digest('hex');
-
-                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, password = ?, courseID = ? WHERE email = ? AND isActive = 1', [profName, email, passwordHashed, courseID, currentUserEmail]);
-                    } else {
-                        [result] = await db_connection.query('UPDATE USERDATA SET profName = ?, email = ?, courseID = ? WHERE email = ? AND isActive = 1', [profName, email, courseID, currentUserEmail]);
-                    }
+                    return res.status(403).json({ error: 'Permission denied. Admins can only edit profile.' });
                 } else {
                     // Invalid userRole
                     return res.status(400).json({ error: 'Invalid user role!' });
-                }
-
-                if (result.affectedRows === 1) {
-                    // Commit the transaction
-                    await db_connection.query('COMMIT');
-                    res.json({ message: 'User profile updated successfully' });
-                } else {
-                    // Rollback the transaction
-                    await db_connection.query('ROLLBACK');
-                    res.status(404).json({ error: 'User not found' });
                 }
             } catch (error) {
                 console.error(error);
@@ -1310,19 +1267,8 @@ module.exports = {
                 return res.status(400).json({ error: 'All fields are required' });
             }
 
-            // const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
-            // if (!pattern.test(RollNo)) {
-            //     return res.status(400).json({ error: 'Invalid roll number format' });
-            // }
-
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, ProfessorClass READ, Department READ');
-            const [DeptResult] = await db_connection.query('SELECT * FROM Department WHERE DeptName = ?', [Dept]);
-            if (DeptResult.length === 0) {
-                await db_connection.query('ROLLBACK');
-                return res.status(400).send({ "message": "Department not found!" });
-            }
-            console.log(DeptResult)
 
             // Fetch userRole based on currentUserEmail
             const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
@@ -1330,6 +1276,14 @@ module.exports = {
                 await db_connection.query('UNLOCK TABLES');
                 return res.status(404).json({ error: 'Current user not found' });
             }
+
+            //Checking if Department is found
+            const [DeptResult] = await db_connection.query('SELECT * FROM Department WHERE DeptName = ?', [Dept]);
+            if (DeptResult.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(400).send({ error: "Department not found!" });
+            }
+            console.log(DeptResult)
 
             const currentUserRole = currentUser[0].userRole;
 
