@@ -537,85 +537,139 @@ module.exports = {
         }
     }],
 
-    addAdmin: [
-        webTokenValidator,
-        async (req, res) => {
-            let db_connection;
+    addAdmin: [webTokenValidator, async (req, res) => {
+        let db_connection;
 
-            try {
-                const { userName, newUserEmail } = req.body;
+        try {
+            const { userName, newUserEmail } = req.body;
 
-                if (
-                    newUserEmail === null ||
-                    newUserEmail === undefined ||
-                    newUserEmail === "" ||
-                    !validator.isEmail(req.body.newUserEmail) ||
-                    userName === null ||
-                    userName === undefined ||
-                    userName === ""
-                ) {
-                    return res.status(404).send({ "message": "Missing details." });
-                }
-
-                db_connection = await db.promise().getConnection();
-
-                // Ensure all required fields are defined
-                if (!newUserEmail || !userName) {
-                    return res.status(400).json({ error: 'All fields are required' });
-                }
-
-                // Lock the necessary tables to prevent concurrent writes
-                await db_connection.query('LOCK TABLES USERDATA WRITE');
-
-                // Check if the user is already registered
-                let [existingUser] = await db_connection.query(
-                    'SELECT * FROM USERDATA WHERE email = ?',
-                    [newUserEmail]
-                );
-
-                if (existingUser.length > 0) {
-                    await db_connection.query('UNLOCK TABLES');
-                    return res.status(403).send({ "message": "User already registered!" });
-                }
-
-                // Generate a random password for the manager.
-                const memberPassword = passwordGenerator.randomPassword({
-                    length: 8,
-                    characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
-                });
-
-
-                const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
-
-                // Email the password to the user.
-                mailer.officialCreated(userName, newUserEmail, memberPassword);
-
-                // Insert the user into the USERDATA table
-                await db_connection.query(
-                    'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES (?, ?, ?, 1, 2)',
-                    [userName, newUserEmail, passwordHashed]
-                );
-
-                // Unlock the tables
-                await db_connection.query('UNLOCK TABLES');
-
-                // Return success response
-                return res.status(200).send({ "message": "Admin registered!" });
-            } catch (err) {
-                console.error(err);
-                const time = new Date();
-                fs.appendFileSync(
-                    'logs/errorLogs.txt',
-                    `${time.toISOString()} - addAdmin - ${err}\n`
-                );
-                return res.status(500).send({ "message": "Internal Server Error." });
-            } finally {
-                // Unlock the tables and release the database connection
-                await db_connection.query('UNLOCK TABLES');
-                db_connection.release();
+            if (
+                newUserEmail === null ||
+                newUserEmail === undefined ||
+                newUserEmail === "" ||
+                !validator.isEmail(req.body.newUserEmail) ||
+                userName === null ||
+                userName === undefined ||
+                userName === ""
+            ) {
+                return res.status(404).send({ "message": "Missing details." });
             }
-        },
+
+            db_connection = await db.promise().getConnection();
+
+            // Ensure all required fields are defined
+            if (!newUserEmail || !userName) {
+                return res.status(400).json({ error: 'All fields are required' });
+            }
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
+
+            // Check if the user is already registered
+            let [existingUser] = await db_connection.query(
+                'SELECT * FROM USERDATA WHERE email = ?',
+                [newUserEmail]
+            );
+
+            if (existingUser.length > 0) {
+                await db_connection.query('UNLOCK TABLES');
+                return res.status(403).send({ "message": "User already registered!" });
+            }
+
+            // Generate a random password for the manager.
+            const memberPassword = passwordGenerator.randomPassword({
+                length: 8,
+                characters: [passwordGenerator.lower, passwordGenerator.upper, passwordGenerator.digits]
+            });
+
+
+            const passwordHashed = crypto.createHash('sha256').update(memberPassword).digest('hex');
+
+            // Email the password to the user.
+            mailer.officialCreated(userName, newUserEmail, memberPassword);
+
+            // Insert the user into the USERDATA table
+            await db_connection.query(
+                'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES (?, ?, ?, 1, 2)',
+                [userName, newUserEmail, passwordHashed]
+            );
+
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+
+            // Return success response
+            return res.status(200).send({ "message": "Admin registered!" });
+        } catch (err) {
+            console.error(err);
+            const time = new Date();
+            fs.appendFileSync(
+                'logs/errorLogs.txt',
+                `${time.toISOString()} - addAdmin - ${err}\n`
+            );
+            return res.status(500).send({ "message": "Internal Server Error." });
+        } finally {
+            // Unlock the tables and release the database connection
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    },
     ],
+
+    activateUser: [webTokenValidator, async (req,res)=>{
+        let db_connection;
+
+        try {
+            const { email } = req.body;
+
+            if (
+                email === null ||
+                email === undefined ||
+                email === "" ||
+                !validator.isEmail(req.body.email)
+            ) {
+                return res.status(404).send({ "message": "Missing details." });
+            }
+
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
+
+            let [existingUser] = await db_connection.query(
+                'SELECT * FROM USERDATA WHERE email = ?',
+                [email]
+            );
+
+            if (existingUser.length == 0) {
+                await db_connection.query('UNLOCK TABLES');
+                return res.status(403).send({ "message": "User Not Found!" });
+            }
+            else{
+                await db_connection.query('START TRANSACTION')
+                const [result] = await db_connection.query('UPDATE userdata SET isActive = ? WHERE email = ?', [1,email]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.status(201).json({ message: 'User activated successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to activate user' });
+                }
+            }
+        }catch(error){
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - activateUser - ${error}\n`);
+            res.status(500).json({ error: 'Failed to activate user' });
+        }finally{
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    }],
 
     fetchUserData: [webTokenValidator, async (req, res) => {
         /*
@@ -1931,9 +1985,43 @@ module.exports = {
             }
             console.log(currentUserRole)
 
+            // Remove entries from attendance related to classes in this department
+            await db_connection.query(`
+            DELETE FROM attendance
+            WHERE slotID IN (SELECT slotID FROM Slots WHERE classID = ?)
+            OR RollNo IN (SELECT RollNo FROM studentData WHERE classID = ?)
+            `, [classData[0].classID, classData[0].classID]);
+
+            // Deactivate students related to classes in this department
+            await db_connection.query(`
+                DELETE FROM studentData
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Deactivate slots related to classes in this department
+            await db_connection.query(`
+                DELETE FROM Slots
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Remove entries from ProfessorClass related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ProfessorClass
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Remove entries from ClassCourse related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ClassCourse
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
             // Delete class from class table
             const [classResult] = await db_connection.query(
-                'DELETE FROM class WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
+                'UPDATE class SET isActive=0 WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
                 [batchYear, deptData[0].DeptID, Section, Semester, 1]
             );
             if (classResult.affectedRows === 1) {
@@ -2289,16 +2377,30 @@ module.exports = {
 
             const { courseName } = req.body;
 
-            const [result] = await db_connection.query('INSERT INTO course (courseName, isActive) VALUES (?, ?)', [courseName, 1]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Course created successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to create course' });
+            const [active] = await db_connection.query("SELECT * FROM course WHERE courseName = ? AND isActive='0'",[courseName])
+            if(active.length==1){
+                const [result] = await db_connection.query('UPDATE course SET isActive = ? WHERE courseName = ?', [1,courseName]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.status(201).json({ message: 'Course created successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to create Course' });
+                }
+            }
+            else{
+                const [result] = await db_connection.query('INSERT INTO course (courseName, isActive) VALUES (?, ?)', [courseName, 1]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.status(201).json({ message: 'Course created successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to create course' });
+                }
             }
         } catch (error) {
             console.error(error);
@@ -2333,66 +2435,66 @@ module.exports = {
         try {
             db_connection = await db.promise().getConnection();
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES course WRITE, userdata READ');
-
             const userEmail = req.userEmail;
             const courseName = req.body.courseName;
+            
+            await db_connection.query('LOCK TABLES course WRITE, userdata READ, classCourse WRITE, ProfCourse WRITE');
 
-            // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
-            SELECT userRole
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
-
+                SELECT userRole
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-
+    
             const userRole = userData[0].userRole;
-
-            if (userRole != 0 && userRole != 1) {
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete courses.' });
+    
+            if (userRole !== '0' && userRole !== '1') {
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
             }
-
-            // Fetch courseID based on courseName
+    
             const [courseData] = await db_connection.query(`
-            SELECT courseID
-            FROM course
-            WHERE courseName = ? AND isActive = '1'
-        `, [courseName]);
-
+                SELECT courseID
+                FROM Course
+                WHERE CourseName = ? AND isActive = '1'
+            `, [courseName]);
+    
             if (courseData.length === 0) {
                 return res.status(404).json({ error: 'Course not found or inactive' });
             }
-
             const courseID = courseData[0].courseID;
-
-            // Start a transaction
+    
             await db_connection.query('START TRANSACTION');
-
-            const [result] = await db_connection.query('UPDATE course SET isActive = ? WHERE courseID = ?', [0, courseID]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'Course deleted successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(404).json({ error: 'Course not found' });
-            }
+    
+            // Remove entries from ClassCourse related to this course
+            await db_connection.query(`
+                DELETE FROM classCourse
+                WHERE courseID = ?
+            `, [courseID]);
+    
+            // Remove entries from ClassCourse related to this course
+            await db_connection.query(`
+                DELETE FROM ProfCourse
+                WHERE courseID = ?
+            `, [courseID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
+            // Deactivate the department
+            await db_connection.query('UPDATE Course SET isActive = ? WHERE courseID = ?', ['0', courseID]);
+            res.json({ message: 'Course and associated data deactivated successfully' });
         } catch (error) {
             console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
+            await db_connection.query('ROLLBACK');
             const time = new Date();
             fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteCourse - ${error}\n`);
-            res.status(500).json({ error: 'Failed to delete course' });
-        } finally {
+            res.status(500).json({ error: 'Failed to delete course and associated data' });
+        }
+        finally{
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
@@ -2526,16 +2628,30 @@ module.exports = {
 
             const { deptName } = req.body;
 
-            const [result] = await db_connection.query('INSERT INTO department (DeptName, isActive) VALUES (?, ?)', [deptName, 1]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Department created successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to create Department' });
+            const [active] = await db_connection.query("SELECT * FROM Department WHERE DeptName = ? AND isActive='0'",[deptName])
+            if(active.length==1){
+                const [result] = await db_connection.query('UPDATE department SET isActive = ? WHERE DeptName = ?', [1,deptName]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.status(201).json({ message: 'Department created successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to create Department' });
+                }
+            }
+            else{
+                const [result] = await db_connection.query('INSERT INTO department (DeptName, isActive) VALUES (?, ?)', [deptName, 1]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    res.status(201).json({ message: 'Department created successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    res.status(500).json({ error: 'Failed to create Department' });
+                }
             }
         } catch (error) {
             console.error(error);
@@ -2558,81 +2674,99 @@ module.exports = {
     },],
 
     deleteDept: [webTokenValidator, async (req, res) => {
-        /*
-            JSON
-            {
-                "deptName": "<deptName>"
-            }
-        */
-
         let db_connection;
-
         try {
             db_connection = await db.promise().getConnection();
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES department WRITE, USERDATA READ');
-
             const userEmail = req.userEmail;
             const deptName = req.body.deptName;
+            
+            await db_connection.query('LOCK TABLES department WRITE, userdata READ, Class WRITE, StudentData WRITE, Slots WRITE, ProfessorClass WRITE, CLassCourse WRITE');
 
-            // Fetch userRole based on the email
             const [userData] = await db_connection.query(`
-            SELECT userRole
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
-
+                SELECT userRole
+                FROM USERDATA
+                WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+    
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-
+    
             const userRole = userData[0].userRole;
-
-            if (userRole != 0 && userRole != 1) {
+    
+            if (userRole !== '0' && userRole !== '1') {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
             }
-
+    
             const [deptData] = await db_connection.query(`
-            SELECT DeptID
-            FROM department
-            WHERE deptName = ? AND isActive = '1'`, [deptName]);
-
+                SELECT DeptID
+                FROM Department
+                WHERE DeptName = ? AND isActive = '1'
+            `, [deptName]);
+    
             if (deptData.length === 0) {
                 return res.status(404).json({ error: 'Department not found or inactive' });
             }
             const deptID = deptData[0].DeptID;
-
-            // Start a transaction
+    
             await db_connection.query('START TRANSACTION');
 
-            const [result] = await db_connection.query('UPDATE department SET isActive = ? WHERE deptID = ?', [0, deptID]);
+            // Remove entries from attendance related to classes in this department
+            await db_connection.query(`
+            DELETE FROM attendance
+            WHERE slotID IN (SELECT slotID FROM Slots WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?))
+            OR RollNo IN (SELECT RollNo FROM studentData WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?))
+            `, [deptID, deptID]);
 
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'department deleted successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
-                res.status(404).json({ error: 'department not found' });
-            }
+            // Deactivate students related to classes in this department
+            await db_connection.query(`
+                DELETE FROM studentData
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Deactivate slots related to classes in this department
+            await db_connection.query(`
+                DELETE FROM Slots
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            
+            // Remove entries from ProfessorClass related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ProfessorClass
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+    
+            // Remove entries from ClassCourse related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ClassCourse
+                WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
+            `, [deptID]);
+
+            // Deactivate classes related to the department
+            await db_connection.query('DELETE FROM class WHERE DeptID = ?', ['0', deptID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
+            // Deactivate the department
+            await db_connection.query('UPDATE Department SET isActive = ? WHERE DeptID = ?', ['0', deptID]);
+            res.json({ message: 'Department and associated data deactivated successfully' });
         } catch (error) {
             console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
+            await db_connection.query('ROLLBACK');
             const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deletedept - ${error}\n`);
-            res.status(500).json({ error: 'Failed to delete dept' });
-        } finally {
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteDept - ${error}\n`);
+            res.status(500).json({ error: 'Failed to delete department and associated data' });
+        }
+        finally{
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },],
-
+    }],
+    
     allDepts: [webTokenValidator, async (req, res) => {
         let db_connection;
 
