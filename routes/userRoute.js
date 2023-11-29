@@ -66,6 +66,8 @@ router.get('/all-dept', userWebController.allDepts)
 router.post('/add-prof-course', userWebController.addProfCourse);
 router.post('/add-class-course-prof', userWebController.addClassCourseProf);
 router.delete('/delete-prof-course', userWebController.deleteProfCourse);
+router.delete('/delete-class-course-prof', userWebController.deleteClassCourseProf);
+
 
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);
