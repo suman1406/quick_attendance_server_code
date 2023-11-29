@@ -1709,7 +1709,6 @@ module.exports = {
             await db_connection.query('LOCK TABLES class WRITE, USERDATA READ, Department READ');
 
             const isActive = '1'; // Assuming isActive is a CHAR(1) field
-
             const userEmail = req.userEmail;
 
             // Find the current user's role based on email
@@ -2101,7 +2100,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ');
+            await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ, Department READ');
 
             const userEmail = req.userEmail;
 
@@ -2126,7 +2125,6 @@ module.exports = {
                 // Unlock the tables
                 await db_connection.query('UNLOCK TABLES');
                 db_connection.release();
-
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
             }
 
@@ -2134,33 +2132,48 @@ module.exports = {
             await db_connection.query('START TRANSACTION');
 
             const { batchYear, Dept, Section, Semester, periodNo } = req.body;
+            
+           //Check if Dept is available
+           const [deptData] = await db_connection.query(`
+           SELECT DeptID
+           FROM department
+           WHERE DeptName = ? AND isActive = '1'
+           `, [Dept]);
+           console.log(deptData)
+           if (deptData.length === 0) {
+               await db_connection.query('ROLLBACK');
+               return res.status(404).json({ error: 'Department entered was not found or inactive' });
+           }
 
-            // Find classID based on provided details
-            const [classResult] = await db_connection.query(`
+            //check if class is already present
+            const [classData] = await db_connection.query(`
             SELECT classID
             FROM class
-            WHERE batchYear = ? AND Dept = ? AND Section = ? AND Semester = ? AND isActive = '1'
-        `, [batchYear, Dept, Section, Semester]);
-
-            if (classResult.length === 0) {
-                // Rollback the transaction
+            WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
+            console.log(classData)
+            if (classData.length === 0) {
                 await db_connection.query('ROLLBACK');
-                return res.status(400).json({ error: 'Class not found or inactive' });
+                return res.status(404).json({ error: 'Class entered is not present' });
             }
-
-            const classID = classResult[0].classID;
+            const classID = classData[0].classID;
 
             // Insert slot into slots table
+            const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?',[classID,periodNo]);
+            if(available.length>0){
+                await db_connection.query('ROLLBACK');
+                return res.status(500).json({ error: 'Slot already exist' });
+            }
             const [result] = await db_connection.query('INSERT INTO slots (classID, periodNo) VALUES (?, ?)', [classID, periodNo]);
 
             if (result.affectedRows === 1) {
                 // Commit the transaction
                 await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Slot created successfully' });
+                return res.status(201).json({ message: 'Slot created successfully' });
             } else {
                 // Rollback the transaction
                 await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to create slot' });
+                return res.status(500).json({ error: 'Failed to create slot' });
             }
         } catch (error) {
             console.error(error);
@@ -2190,100 +2203,101 @@ module.exports = {
                 "periodNo": "<periodNo>"
             }
             */
-        let db_connection;
+            let db_connection;
 
-        try {
-            db_connection = await db.promise().getConnection();
+            try {
+                db_connection = await db.promise().getConnection();
 
-            // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ');
+                // Lock the necessary tables to prevent concurrent writes
+                await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ, Department READ');
 
-            const userEmail = req.userEmail;
-            const batchYear = req.body.batchYear;
-            const Dept = req.body.Dept;
-            const Section = req.body.Section;
-            const Semester = req.body.Semester;
-            const PeriodNo = req.body.periodNo;
+                const userEmail = req.userEmail;
 
-            // Fetch userRole based on the email
-            const [userResult] = await db_connection.query(`
-            SELECT userRole
-            FROM userdata
-            WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
+                if (!userEmail || !validator.isEmail(userEmail)) {
+                    return res.status(400).json({ error: 'Invalid user email' });
+                }
 
-            if (userResult.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
-            }
+                // Fetch userRole based on the email
+                const [userResult] = await db_connection.query(`
+                SELECT userRole
+                FROM userdata
+                WHERE email = ? AND isActive = '1'
+                `, [userEmail]);
 
-            const cUserRole = userResult[0].userRole;
+                if (userResult.length === 0) {
+                    return res.status(404).json({ error: 'User not found or inactive' });
+                }
 
-            if (currentUserRole != 0 && currentUserRole != 1) {
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete slots.' });
-            }
+                const cUserRole = userResult[0].userRole;
 
-            // Fetch profID based on the email
-            const [profData] = await db_connection.query(`
-            SELECT profID FROM USERDATA WHERE email = ? AND isActive = '1'
-        `, [userEmail]);
+                if (cUserRole != 0 && cUserRole != 1) {
+                    // Unlock the tables
+                    await db_connection.query('UNLOCK TABLES');
+                    db_connection.release();
+                    return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+                }
 
-            if (profData.length === 0) {
-                return res.status(404).json({ error: 'Professor not found or inactive' });
-            }
+                // Start a transaction
+                await db_connection.query('START TRANSACTION');
 
-            const profID = profData[0].profID;
+                const { batchYear, Dept, Section, Semester, periodNo } = req.body;
+                
+                //Check if Dept is available
+                const [deptData] = await db_connection.query(`
+                SELECT DeptID
+                FROM department
+                WHERE DeptName = ? AND isActive = '1'
+                `, [Dept]);
+                console.log(deptData)
+                if (deptData.length === 0) {
+                    await db_connection.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Department entered was not found or inactive' });
+                }
 
-            // Fetch classID based on the provided details
-            const [classData] = await db_connection.query(`
-            SELECT classID
-            FROM class
-            WHERE batchYear = ? AND Semester = ? AND Section = ? AND isActive = '1'
-        `, [batchYear, Semester, Section]);
+                //check if class is already present
+                const [classData] = await db_connection.query(`
+                SELECT classID
+                FROM class
+                WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+                `, [batchYear, deptData[0].DeptID, Section, Semester]);
+                console.log(classData)
+                if (classData.length === 0) {
+                    await db_connection.query('ROLLBACK');
+                    return res.status(404).json({ error: 'Class entered is not present' });
+                }
+                const classID = classData[0].classID;
 
-            if (classData.length === 0) {
-                return res.status(404).json({ error: 'Class not found' });
-            }
+                // Insert slot into slots table
+                const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?',[classID,periodNo]);
+                if(available.length==0){
+                    await db_connection.query('ROLLBACK');
+                    return res.status(500).json({ error: 'Slot does not exist' });
+                }
+                const [result] = await db_connection.query('DELETE FROM slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
 
-            const classID = classData[0].classID;
-
-            // Fetch slotID based on classID and PeriodNo
-            const [slotData] = await db_connection.query('SELECT slotID FROM slots WHERE classID = ? AND PeriodNo = ?', [classID, PeriodNo]);
-
-            if (slotData.length === 0) {
-                return res.status(404).json({ error: 'Slot not found' });
-            }
-
-            const slotID = slotData[0].slotID;
-
-            // Start a transaction
-            await db_connection.query('START TRANSACTION');
-
-            await db_connection.query('DELETE FROM attendance WHERE slotID = ?', [slotID]);
-            const [result] = await db_connection.query('DELETE FROM slots WHERE slotID = ?', [slotID]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.json({ message: 'Slot deleted successfully' });
-            } else {
-                // Rollback the transaction
-                await db_connection.query('ROLLBACK');
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                    return res.status(201).json({ message: 'Slot deleted successfully' });
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    return res.status(500).json({ error: 'Failed to delete slot' });
+                }
+            } catch (error) {
+                console.error(error);
+                // Rollback the transaction in case of an error
+                if (db_connection) {
+                    await db_connection.query('ROLLBACK');
+                }
+                const time = new Date();
+                fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteSlot - ${error}\n`);
                 res.status(500).json({ error: 'Failed to delete slot' });
+            } finally {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
             }
-        } catch (error) {
-            console.error(error);
-            // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.query('ROLLBACK');
-            }
-            const time = new Date();
-            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - deleteSlot - ${error}\n`);
-            res.status(500).json({ error: 'Failed to delete slot' });
-        } finally {
-            // Unlock the tables
-            await db_connection.query('UNLOCK TABLES');
-            db_connection.release();
-        }
     },],
 
     // -------------------Slot Operations Ends------------------------------
