@@ -1985,9 +1985,43 @@ module.exports = {
             }
             console.log(currentUserRole)
 
+            // Remove entries from attendance related to classes in this department
+            await db_connection.query(`
+            DELETE FROM attendance
+            WHERE slotID IN (SELECT slotID FROM Slots WHERE classID = ?)
+            OR RollNo IN (SELECT RollNo FROM studentData WHERE classID = ?)
+            `, [classData[0].classID, classData[0].classID]);
+
+            // Deactivate students related to classes in this department
+            await db_connection.query(`
+                DELETE FROM studentData
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Deactivate slots related to classes in this department
+            await db_connection.query(`
+                DELETE FROM Slots
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Remove entries from ProfessorClass related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ProfessorClass
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Remove entries from ClassCourse related to classes in this department
+            await db_connection.query(`
+                DELETE FROM ClassCourse
+                WHERE classID = ?
+            `, [classData[0].classID]);
+    
+            // Commit transaction
+            await db_connection.query('COMMIT');
+            
             // Delete class from class table
             const [classResult] = await db_connection.query(
-                'UPDATE class SET isActtive=0 WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
+                'UPDATE class SET isActive=0 WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
                 [batchYear, deptData[0].DeptID, Section, Semester, 1]
             );
             if (classResult.affectedRows === 1) {
@@ -2677,24 +2711,27 @@ module.exports = {
             const deptID = deptData[0].DeptID;
     
             await db_connection.query('START TRANSACTION');
-    
-            // Deactivate classes related to the department
-            await db_connection.query('UPDATE class SET isActive = ? WHERE DeptID = ?', ['0', deptID]);
-    
+
+            // Remove entries from attendance related to classes in this department
+            await db_connection.query(`
+            DELETE FROM attendance
+            WHERE slotID IN (SELECT slotID FROM Slots WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?))
+            OR RollNo IN (SELECT RollNo FROM studentData WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?))
+            `, [deptID, deptID]);
+
             // Deactivate students related to classes in this department
             await db_connection.query(`
-                UPDATE studentData
-                SET isActive = '0'
+                DELETE FROM studentData
                 WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
             `, [deptID]);
     
             // Deactivate slots related to classes in this department
             await db_connection.query(`
-                UPDATE Slots
-                SET isActive = '0'
+                DELETE FROM Slots
                 WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
             `, [deptID]);
     
+            
             // Remove entries from ProfessorClass related to classes in this department
             await db_connection.query(`
                 DELETE FROM ProfessorClass
@@ -2706,6 +2743,9 @@ module.exports = {
                 DELETE FROM ClassCourse
                 WHERE classID IN (SELECT classID FROM class WHERE DeptID = ?)
             `, [deptID]);
+
+            // Deactivate classes related to the department
+            await db_connection.query('DELETE FROM class WHERE DeptID = ?', ['0', deptID]);
     
             // Commit transaction
             await db_connection.query('COMMIT');
