@@ -44,7 +44,6 @@ router.get('/my-classes', userWebController.myClasses); //done
 router.get('/all-semesters', userWebController.allSemesters);
 router.get('/all-BatchYears', userWebController.allBatchYears);
 router.get('/all-sections', userWebController.allSections);
-router.get('/my-classes', userWebController.myClasses);
 router.delete('/delete-class', userWebController.deleteClass);
 
 // Slot routes
