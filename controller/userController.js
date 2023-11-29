@@ -343,29 +343,13 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
 
-            // // Check if the current user is an admin
-            // let [admin] = await db_connection.query(
-            //     `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
-            //     [req.userEmail, "1"]
-            // );
-            //     console.log(req.userEmail)
-            // if (admin.length === 0) {
-            //     await db_connection.query(`UNLOCK TABLES`);
-            //     return res.status(401).send({ "message": "Access Restricted!" });
-            // }
-
             // Check if admin exists
-            let [adminToDelete1] = await db_connection.query(
+            let [adminToDelete] = await db_connection.query(
                 `SELECT * FROM USERDATA WHERE email = ? AND isActive = ? AND userRole = ?`,
                 [req.body.Email, "1", "1"]
             );
 
-            let [adminToDelete2] = await db_connection.query(
-                `SELECT * FROM USERDATA WHERE email = ? AND isActive = ? AND userRole = ?`,
-                [req.body.Email, "2", "1"]
-            );
-
-            if (adminToDelete1.length === 0 || adminToDelete2 === 0) {
+            if (adminToDelete.length === 0) {
                 await db_connection.query(`UNLOCK TABLES`);
                 return res.status(400).send({ "message": "Admin doesn't exist!" });
             }
@@ -407,7 +391,7 @@ module.exports = {
     
         JSON
         {
-            "userEmail": "<userEmail>",
+            "Email": "<userEmail>",
             "facultyProfName": "<profName>"
         }
         */
@@ -433,17 +417,6 @@ module.exports = {
 
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
-
-            // // Check if the current user is an admin
-            // let [admin] = await db_connection.query(
-            //     `SELECT * FROM USERDATA WHERE email = ? AND userRole = ?`,
-            //     [req.body.currentUserEmail, "1"]
-            // );
-
-            // if (admin.length === 0) {
-            //     await db_connection.query(`UNLOCK TABLES`);
-            //     return res.status(401).send({ "message": "Access Restricted!" });
-            // }
 
             // Check if faculty exists
             let [faculty] = await db_connection.query(
@@ -498,7 +471,7 @@ module.exports = {
                 userName === undefined ||
                 userName === ""
             ) {
-                console.log(userName, newUserEmail, courses)
+                console.log(userName, newUserEmail)
                 return res.status(400).send({ "message": "Missing details." });
             }
 
@@ -511,7 +484,7 @@ module.exports = {
             }
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES USERDATA WRITE, ProfCourse WRITE, ClassCourse WRITE, course READ, Department READ');
+            await db_connection.query('LOCK TABLES USERDATA WRITE');
 
             // Check if the user is already registered
             let [existingUser] = await db_connection.query(
@@ -541,20 +514,6 @@ module.exports = {
                 'INSERT INTO USERDATA (profName, email, password, userRole, isActive) VALUES(?, ?, ?, 0, 2)',
                 [userName, newUserEmail, passwordHashed]
             );
-
-            const professorID = insertUserResult.insertId;
-
-            // Associate professor with courses in ProfCourse table
-            for (const course of courses) {
-                let [courseID] = await db_connection.query(
-                    'SELECT CourseID from Course where CourseName = ?', [course]
-                )
-                console.log(courseID[0].CourseID)
-                await db_connection.query(
-                    'INSERT INTO ProfCourse (professorID, courseID) VALUES (?, ?)',
-                    [professorID, courseID[0].CourseID]
-                );
-            }
 
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
@@ -587,13 +546,13 @@ module.exports = {
                 const { userName, newUserEmail } = req.body;
 
                 if (
-                    req.body.newUserEmail === null ||
-                    req.body.newUserEmail === undefined ||
-                    req.body.newUserEmail === "" ||
+                    newUserEmail === null ||
+                    newUserEmail === undefined ||
+                    newUserEmail === "" ||
                     !validator.isEmail(req.body.newUserEmail) ||
-                    req.body.userName === null ||
-                    req.body.userName === undefined ||
-                    req.body.userName === ""
+                    userName === null ||
+                    userName === undefined ||
+                    userName === ""
                 ) {
                     return res.status(404).send({ "message": "Missing details." });
                 }
@@ -606,7 +565,7 @@ module.exports = {
                 }
 
                 // Lock the necessary tables to prevent concurrent writes
-                await db_connection.query('LOCK TABLES USERDATA WRITE, course READ');
+                await db_connection.query('LOCK TABLES USERDATA WRITE');
 
                 // Check if the user is already registered
                 let [existingUser] = await db_connection.query(

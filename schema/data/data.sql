@@ -151,7 +151,7 @@ INSERT INTO USERDATA (email, password, profName, userRole) VALUES
 ('student1@example.com', 'password6', 'Student 1', '0'),
 ('student2@example.com', 'password7', 'Student 2', '0'),
 ('student3@example.com', 'password8', 'Student 3', '0'),
-('admin@example.com', 'adminpass', 'Administrator', 'A'),
+('admin@example.com', 'adminpass', 'Administrator', '1'),
 ('guest@example.com', 'guestpass', 'Guest', '0'),
 ('demo@example.com', 'demopass', 'Demo User', '0'),
 ('test@example.com', 'testpass', 'Test User', '0'),
