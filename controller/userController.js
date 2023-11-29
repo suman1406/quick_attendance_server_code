@@ -1249,7 +1249,7 @@ module.exports = {
             const currentUserEmail = req.userEmail;
 
             db_connection = await db.promise().getConnection();
-            console.log(RollNo,StdName,batchYear,Section,Semester)
+            console.log(RollNo, StdName, batchYear, Section, Semester)
 
             // Ensure all required fields are defined
             if (!RollNo || !StdName || !batchYear || !Section || !Dept || !Semester || !currentUserEmail) {
