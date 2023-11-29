@@ -1174,6 +1174,7 @@ module.exports = {
 
             const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?', [RollNo])
             if (StudentPresent.length != 0) {
+                await db_connection.query('ROLLBACK');
                 return res.status(500).json({ error: 'Student already present' });
             }
 
@@ -1248,6 +1249,7 @@ module.exports = {
             const currentUserEmail = req.userEmail;
 
             db_connection = await db.promise().getConnection();
+            console.log(RollNo,StdName,batchYear,Section,Semester)
 
             // Ensure all required fields are defined
             if (!RollNo || !StdName || !batchYear || !Section || !Dept || !Semester || !currentUserEmail) {
@@ -1262,15 +1264,14 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES studentData WRITE, USERDATA READ, class WRITE, ProfessorClass READ, Department READ');
             const [DeptResult] = await db_connection.query('SELECT * FROM Department WHERE DeptName = ?', [Dept]);
-
             if (DeptResult.length === 0) {
                 await db_connection.query('ROLLBACK');
                 return res.status(400).send({ "message": "Department not found!" });
             }
+            console.log(DeptResult)
 
             // Fetch userRole based on currentUserEmail
             const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
-
             if (currentUser.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
                 return res.status(404).json({ error: 'Current user not found' });
@@ -1279,8 +1280,8 @@ module.exports = {
             const currentUserRole = currentUser[0].userRole;
 
             // Get classID based on batchYear, Section, Dept, and Semester
-            const [classResult] = await db_connection.query('SELECT classID FROM class WHERE batchYear = ? AND Section = ? AND DeptID = ? AND Semester = ?', [batchYear, Section, Dept, Semester]);
-
+            const [classResult] = await db_connection.query('SELECT classID FROM class WHERE batchYear = ? AND Section = ? AND DeptID = ? AND Semester = ?', [batchYear, Section, DeptResult[0].DeptID, Semester]);
+            console.log(classResult)
             if (classResult.length === 0) {
                 await db_connection.query('UNLOCK TABLES');
                 return res.status(404).json({ error: 'Class not found' });
