@@ -1723,9 +1723,21 @@ module.exports = {
             `, [Dept]);
             console.log(deptData)
             if (deptData.length === 0) {
+                await db_connection.query('ROLLBACK');
                 return res.status(404).json({ error: 'Department entered was not found or inactive' });
             }
 
+            //check if class is already present
+            const [classData] = await db_connection.query(`
+            SELECT classID
+            FROM class
+            WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            console.log(classData)
+            if (classData.length === 1) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Class entered is already present' });
+            }
             console.log(currentUserRole)
 
             // Insert class into class table
@@ -1767,11 +1779,11 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES USERDATA READ, ProfessorClass READ, class READ, course READ');
+            await db_connection.query('LOCK TABLES USERDATA READ, ProfessorClass pc READ, class c READ, Department d READ');
 
-            const userEmail = req.body.userEmail;
+            const userEmail = req.userEmail;
 
-            console.log(req.body.userEmail)
+            console.log(req.userEmail)
 
             if (!userEmail || !validator.isEmail(userEmail)) {
                 return res.status(400).json({ error: 'Invalid current user email' });
@@ -1809,14 +1821,12 @@ module.exports = {
 
             const profID = profData[0].profID;
 
-            await db_connection.query('LOCK TABLES ProfessorClass pc READ, class c READ, course co READ');
-
             // Fetch classes along with course information
             const [rows] = await db_connection.query(`
-            SELECT c.Dept, c.Section, c.Semester, c.batchYear, co.courseName 
+            SELECT d.DeptName, c.Section, c.Semester, c.batchYear
             FROM ProfessorClass pc
             JOIN class c ON c.classID = pc.classID
-            JOIN course co ON co.courseID = c.courseID
+            JOIN department d ON d.DeptID = c.deptID
             WHERE pc.professorID = ? AND c.isActive = '1'
         `, [profID]);
 
@@ -1843,20 +1853,14 @@ module.exports = {
     },],
 
     deleteClass: [webTokenValidator, async (req, res) => {
-        // Delete a class
+        // Create a class
         /*
-        queries 
-        {
-            userEmail: <userEmail>
-        }
             JSON
             {
-                "email": "<email>",
                 "batchYear": "<batchYear>",
-                "Semester": "<Semester>",
-                "Section": "<Section>",
                 "Dept": "<Dept>",
-                "courseName": "<courseName>"
+                "Section": "<Section>",
+                "Semester": "<Semester>",
             }
         */
 
@@ -1866,143 +1870,71 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES class WRITE, ProfessorClass WRITE, USERDATA READ, course READ');
+            await db_connection.query('LOCK TABLES class WRITE, USERDATA READ, Department READ');
 
-            const currentUserEmail = req.query.currentUserEmail;
-            const userEmail = req.body.email;
-            const batchYear = req.body.batchYear;
-            const Semester = req.body.Semester;
-            const Section = req.body.Section;
-            const Dept = req.body.Dept;
-            const courseName = req.body.courseName;
+            const isActive = '1'; // Assuming isActive is a CHAR(1) field
 
-            if (!currentUserEmail || !validator.isEmail(currentUserEmail)) {
-                return res.status(400).json({ error: 'Invalid user email' });
+            const userEmail = req.userEmail;
+
+            // Find the current user's role based on email
+            const [userRoleResult] = await db_connection.query("SELECT * FROM USERDATA WHERE email = ? AND isActive = '1'", [userEmail]);
+
+            if (userRoleResult.length === 0) {
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                return res.status(400).json({ error: 'User not found' });
             }
 
-            // Fetch userRole based on the currentUserEmail
-            const [userData] = await db_connection.query(`
-            SELECT userRole
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-        `, [currentUserEmail]);
+            const currentUserRole = userRoleResult[0].userRole;
 
-            if (userData.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
+            if (currentUserRole != 0 && currentUserRole != 1) {
+                await db_connection.query('ROLLBACK');
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create classes.' });
             }
 
-            const userRole = userData[0].userRole;
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
 
-            if (userRole === '0') {
-                // If the user is a faculty, ensure they can only delete their own classes
-                const [profData] = await db_connection.query(`
-                SELECT profID
-                FROM USERDATA
-                WHERE email = ? AND isActive = '1'
-            `, [currentUserEmail]);
+            const { batchYear, Dept, Section, Semester} = req.body;
 
-                if (profData.length === 0) {
-                    return res.status(404).json({ error: 'Professor not found' });
-                }
+            //Check if Dept is available
+            const [deptData] = await db_connection.query(`
+            SELECT DeptID
+            FROM department
+            WHERE DeptName = ? AND isActive = '1'
+            `, [Dept]);
+            console.log(deptData)
+            if (deptData.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Department entered was not found or inactive' });
+            }
 
-                const profID = profData[0].profID;
+            //check if class is already present
+            const [classData] = await db_connection.query(`
+            SELECT classID
+            FROM class
+            WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            console.log(classData)
+            if (classData.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Class entered is not present' });
+            }
+            console.log(currentUserRole)
 
-                // Fetch classID based on the provided details and profID
-                const [classData] = await db_connection.query(`
-                SELECT classID
-                FROM ProfessorClass
-                WHERE professorID = ? AND classID IN (
-                    SELECT classID
-                    FROM class
-                    WHERE batchYear = ? AND Semester = ? AND Section = ? AND Dept = ? AND courseID = (
-                        SELECT courseID
-                        FROM course
-                        WHERE courseName = ?
-                    ) AND isActive = '1'
-                )
-            `, [profID, batchYear, Semester, Section, Dept, courseName]);
-
-                if (classData.length === 0) {
-                    return res.status(404).json({ error: 'Class not found or you do not have permission to delete' });
-                }
-
-                const classID = classData[0].classID;
-
-                // Start a transaction
-                await db_connection.query('START TRANSACTION');
-
-                // Delete entry from ProfessorClass
-                await db_connection.query('DELETE FROM ProfessorClass WHERE professorID = ? AND classID = ?', [profID, classID]);
-
-                // Delete class from class table
-                const [result] = await db_connection.query('UPDATE class SET isActive = ? WHERE classID = ?', [0, classID]);
-
-                if (result.affectedRows === 1) {
-                    // Commit the transaction
-                    await db_connection.query('COMMIT');
-                    res.json({ message: 'Class deleted successfully' });
-                } else {
-                    // Rollback the transaction
-                    await db_connection.query('ROLLBACK');
-                    res.status(500).json({ error: 'Failed to delete class' });
-                }
-            } else if (userRole === '1') {
-
-                // If the user is an admin, ensure they provide the userEmail to delete any class
-                if (!userEmail || !validator.isEmail(userEmail)) {
-                    return res.status(400).json({ error: 'Invalid user email for admin deletion' });
-                }
-
-                // Fetch profID based on the userEmail
-                const [profData] = await db_connection.query(`
-                SELECT profID
-                FROM USERDATA
-                WHERE email = ? AND isActive = '1'
-            `, [userEmail]);
-
-                if (profData.length === 0) {
-                    return res.status(404).json({ error: 'Professor not found or invalid permissions' });
-                }
-
-                const profID = profData[0].profID;
-
-                // Fetch classID based on the provided details and profID
-                const [classData] = await db_connection.query(`
-                SELECT classID
-                FROM class
-                WHERE batchYear = ? AND Semester = ? AND Section = ? AND Dept = ? AND courseID = (
-                    SELECT courseID
-                    FROM course
-                    WHERE courseName = ?
-                ) AND isActive = '1'
-            `, [batchYear, Semester, Section, Dept, courseName]);
-
-                if (classData.length === 0) {
-                    return res.status(404).json({ error: 'Class not found or already deleted' });
-                }
-
-                const classID = classData[0].classID;
-
-                // Start a transaction
-                await db_connection.query('START TRANSACTION');
-
-                // Delete entry from ProfessorClass
-                await db_connection.query('DELETE FROM ProfessorClass WHERE professorID = ? AND classID = ?', [profID, classID]);
-
-                // Delete class from class table
-                const [result] = await db_connection.query('UPDATE class SET isActive = ? WHERE classID = ?', [0, classID]);
-
-                if (result.affectedRows === 1) {
-                    // Commit the transaction
-                    await db_connection.query('COMMIT');
-                    res.json({ message: 'Class deleted successfully' });
-                } else {
-                    // Rollback the transaction
-                    await db_connection.query('ROLLBACK');
-                    res.status(500).json({ error: 'Failed to delete class' });
-                }
+            // Delete class from class table
+            const [classResult] = await db_connection.query(
+                'DELETE FROM class WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
+                [batchYear, deptData[0].DeptID, Section, Semester,1]
+            );
+            if (classResult.affectedRows === 1) {
+                // Commit the transaction
+                await db_connection.query('COMMIT');
+                res.status(201).json({ message: 'Class deleted successfully' });
             } else {
-                return res.status(403).json({ error: 'Permission denied. Only faculty and admins can delete classes.' });
+                // Rollback the transaction
+                await db_connection.query('ROLLBACK');
+                res.status(500).json({ error: 'Failed to delete class' });
             }
         } catch (error) {
             console.error(error);
