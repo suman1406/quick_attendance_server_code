@@ -75,12 +75,12 @@ module.exports = {
                 if (req.body.reqRole == "0") {
                     // Fetch all faculty members
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '0' AND u.isActive = '2'`, // change to 1 later
+                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '0' AND u.isActive = '1'`,
                     );
                 } else if (req.body.reqRole == "1") {
                     // Fetch all administrators
                     [users] = await db_connection.query(
-                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '1' AND u.isActive = '2'`
+                        `SELECT u.profName, u.email FROM USERDATA u WHERE u.userRole = '1' AND u.isActive = '1'`
                     );
 
                     console.log(users)
@@ -1740,7 +1740,7 @@ module.exports = {
             SELECT classID
             FROM class
             WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
-            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
             console.log(classData)
             if (classData.length === 1) {
                 await db_connection.query('ROLLBACK');
@@ -1903,7 +1903,7 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester} = req.body;
+            const { batchYear, Dept, Section, Semester } = req.body;
 
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
@@ -1922,7 +1922,7 @@ module.exports = {
             SELECT classID
             FROM class
             WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
-            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
             console.log(classData)
             if (classData.length === 0) {
                 await db_connection.query('ROLLBACK');
@@ -1933,7 +1933,7 @@ module.exports = {
             // Delete class from class table
             const [classResult] = await db_connection.query(
                 'DELETE FROM class WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = ?',
-                [batchYear, deptData[0].DeptID, Section, Semester,1]
+                [batchYear, deptData[0].DeptID, Section, Semester, 1]
             );
             if (classResult.affectedRows === 1) {
                 // Commit the transaction
