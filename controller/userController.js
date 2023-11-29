@@ -1170,7 +1170,7 @@ module.exports = {
             // Validate the RollNo format
             const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
             if (!pattern.test(RollNo)) {
-                return res.status(400).json({ error: 'Invalid roll number format' });
+                return res.status(401).json({ error: 'Invalid roll number format' });
             }
 
             await db_connection.query('START TRANSACTION');
@@ -1180,13 +1180,13 @@ module.exports = {
 
             if (currentUser.length === 0) {
                 await db_connection.query('ROLLBACK');
-                return res.status(404).json({ error: 'Current user not found' });
+                return res.status(402).json({ error: 'Current user not found' });
             }
 
             const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?', [RollNo])
             if (StudentPresent.length != 0) {
                 await db_connection.query('ROLLBACK');
-                return res.status(500).json({ error: 'Student already present' });
+                return res.status(403).json({ error: 'Student already present' });
             }
 
             const currentUserRole = currentUser[0].userRole;
@@ -1196,7 +1196,7 @@ module.exports = {
 
             if (DeptResult.length === 0) {
                 await db_connection.query('ROLLBACK');
-                return res.status(400).send({ "message": "Department not found!" });
+                return res.status(404).send({ "message": "Department not found!" });
             }
 
             // Insert data into class table
@@ -1206,7 +1206,7 @@ module.exports = {
             );
             if (classResult.length == 0) {
                 await db_connection.query('ROLLBACK');
-                return res.status(400).send({ "message": "Class not found!" });
+                return res.status(405).send({ "message": "Class not found!" });
             }
             console.log(classResult)
             // Insert data into studentData table
