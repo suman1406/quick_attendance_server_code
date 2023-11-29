@@ -153,7 +153,7 @@ module.exports = {
 
                 await db_connection.query('LOCK TABLES USERDATA u READ');
                 const [users] = await db_connection.query(
-                    `SELECT u.email FROM USERDATA u WHERE u.isActive = '1'`, 
+                    `SELECT u.email FROM USERDATA u WHERE u.isActive = '1'`,
                 );
                 console.log(users)
                 await db_connection.query('UNLOCK TABLES');
@@ -972,7 +972,13 @@ module.exports = {
                 [req.body.email]
             );
 
+            let [userName] = await db_connection.query(
+                `SELECT profName FROM USERDATA WHERE email = ?`,
+                [req.body.email]
+            );
+
             const secret_token = await otpTokenGenerator({
+                userName: userName,
                 email: req.body.email,
                 userRole: userRole,
             });
@@ -1023,7 +1029,7 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA READ, USERREGISTER READ`);
             let [professor] = await db_connection.query(
-                `SELECT profName FROM USERDATA WHERE email = ?`,
+                `SELECT * FROM USERDATA WHERE email = ?`,
                 [req.body.userEmail]
             );
             let [userRegister] = await db_connection.query(
@@ -1048,6 +1054,8 @@ module.exports = {
             }
 
             await db_connection.query(`UNLOCK TABLES`);
+
+            console.log(professor[0])
 
             const secret_token = await webTokenGenerator({
                 "email": professor[0].profEmail,
@@ -1100,7 +1108,7 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
             let [professor] = await db_connection.query(
-                `SELECT profName, isActive FROM USERDATA WHERE email = ?`,
+                `SELECT * FROM USERDATA WHERE email = ?`,
                 [req.body.email]
             );
 
@@ -1754,7 +1762,7 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester} = req.body;
+            const { batchYear, Dept, Section, Semester } = req.body;
 
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
@@ -2923,7 +2931,7 @@ module.exports = {
 
     // -------------------Many-to-Many Operations Starts------------------------
 
-    addProfCourse: [webTokenValidator, async (req, res)=>{
+    addProfCourse: [webTokenValidator, async (req, res) => {
         /*
             JSON
             {
@@ -2934,26 +2942,26 @@ module.exports = {
         let db_connection;
 
         try {
-            const { profEmail,courses } = req.body;
+            const { profEmail, courses } = req.body;
             db_connection = await db.promise().getConnection();
-            console.log(profEmail,courses)
+            console.log(profEmail, courses)
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
-    
+
             const userEmail = req.userEmail;
             console.log(userEmail)
-    
+
             // Fetch userRole based on the email and check if user is active
             const [userData] = await db_connection.query(`
             SELECT userRole
             FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `, [userEmail]);
-    
+
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-            
+
             // Fetch Courses passed as params and check if all are already present or is active
             const placeholders = courses.map(() => '?').join(', '); // Generate placeholders like (?, ?)
 
@@ -2975,14 +2983,14 @@ module.exports = {
             FROM UserData
             WHERE email = ? AND isActive = '1'
             `, [profEmail]);
-            
+
             console.log(profData)
             if (profData.length === 0) {
                 return res.status(404).json({ error: 'Professor email entered was not found or inactive' });
             }
-    
+
             const userRole = userData[0].userRole;
-    
+
             if (userRole != 0 && userRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
             }
@@ -2990,12 +2998,12 @@ module.exports = {
             await db_connection.query('START TRANSACTION');
 
             let addedCourses = 0;
-            for (i of courseData){
+            for (i of courseData) {
                 const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
                 if (available.length === 0) {
                     const [result] = await db_connection.query('INSERT INTO ProfCourse (professorID, CourseID) VALUES (?, ?)', [profData[0].ProfID, i.courseID]);
                     if (result.affectedRows === 1) {
-                        addedCourses+=1;
+                        addedCourses += 1;
                     } else {
                         // Rollback the transaction
                         await db_connection.query('ROLLBACK');
@@ -3003,12 +3011,12 @@ module.exports = {
                     }
                 }
             }
-            if(addedCourses <= courseData.length){
+            if (addedCourses <= courseData.length) {
                 await db_connection.query('COMMIT');
                 res.status(201).json({ message: 'Courses created successfully' });
             }
 
-        }catch(error){
+        } catch (error) {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
@@ -3022,29 +3030,29 @@ module.exports = {
         }
     }],
 
-    deleteProfCourse: [webTokenValidator, async (req,res)=>{
+    deleteProfCourse: [webTokenValidator, async (req, res) => {
         /*
         
         */
         let db_connection;
 
         try {
-            const { profEmail,courses } = req.body;
+            const { profEmail, courses } = req.body;
             db_connection = await db.promise().getConnection();
-            console.log(profEmail,courses)
+            console.log(profEmail, courses)
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
-    
+
             const userEmail = req.userEmail;
             console.log(userEmail)
-    
+
             // Fetch userRole based on the email and check if user is active
             const [userData] = await db_connection.query(`
             SELECT userRole
             FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `, [userEmail]);
-    
+
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
@@ -3066,14 +3074,14 @@ module.exports = {
             FROM UserData
             WHERE email = ? AND isActive = '1'
             `, [profEmail]);
-            
+
             console.log(profData)
             if (profData.length === 0) {
                 return res.status(404).json({ error: 'Professor email entered was not found or inactive' });
             }
-    
+
             const userRole = userData[0].userRole;
-    
+
             if (userRole != 0 && userRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
             }
@@ -3081,12 +3089,12 @@ module.exports = {
             await db_connection.query('START TRANSACTION');
 
             let deletedCourses = 0;
-            for (i of courseData){
+            for (i of courseData) {
                 const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
                 if (available.length === 1) {
                     const [result] = await db_connection.query('DELETE FROM ProfCourse WHERE professorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
                     if (result.affectedRows === 1) {
-                        deletedCourses+=1;
+                        deletedCourses += 1;
                     } else {
                         // Rollback the transaction
                         await db_connection.query('ROLLBACK');
@@ -3094,26 +3102,26 @@ module.exports = {
                     }
                 }
             }
-            if(deletedCourses<=courseData.length){
+            if (deletedCourses <= courseData.length) {
                 await db_connection.query('COMMIT');
-                return res.status(201).json({message: 'Courses deleted successfully'});
+                return res.status(201).json({ message: 'Courses deleted successfully' });
             }
 
-        }catch(error){
+        } catch (error) {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
             // const time = new Date();
             // fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - add Prof Course - ${error}\n`);
             res.status(500).json({ error: 'Failed to create Courses for professor' });
-        }finally{
+        } finally {
             // Unlock the tables
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
     }],
 
-    addClassCourseProf: [webTokenValidator, async (req, res)=>{
+    addClassCourseProf: [webTokenValidator, async (req, res) => {
         /*
             JSON
             {
@@ -3128,15 +3136,15 @@ module.exports = {
         let db_connection;
 
         try {
-            const { batchYear, Dept, Section, Semester, courses, profEmails} = req.body;
+            const { batchYear, Dept, Section, Semester, courses, profEmails } = req.body;
             db_connection = await db.promise().getConnection();
-            console.log(profEmails,courses)
+            console.log(profEmails, courses)
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES classcourse WRITE, professorclass WRITE, userdata READ, Course READ, Department READ, class READ');
-    
+
             const userEmail = req.userEmail;
             console.log(userEmail)
-    
+
             // Fetch userRole based on the email and check if user is active
             const [userData] = await db_connection.query(`
             SELECT userRole
@@ -3146,10 +3154,10 @@ module.exports = {
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-            
+
             // Fetch Courses passed as params and check if all are already present or is active
             let courseData
-            if(courses && Array.isArray(courses) && courses.length > 0){
+            if (courses && Array.isArray(courses) && courses.length > 0) {
                 const placeholdersc = courses.map(() => '?').join(', ');
                 let query = `
                     SELECT courseID
@@ -3165,7 +3173,7 @@ module.exports = {
 
             //Fetch prof and check if all the profs are available or active
             let profData
-            if(profEmails && Array.isArray(profEmails) && profEmails.length > 0){
+            if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 const placeholders = profEmails.map(() => '?').join(', ');
                 query = `
                     SELECT profID
@@ -3190,34 +3198,34 @@ module.exports = {
             if (deptData.length === 0) {
                 return res.status(404).json({ error: 'Department entered was not found or inactive' });
             }
-            
+
             // Fetch Class passed as param and check if that class is present or is active
             const [classData] = await db_connection.query(`
             SELECT classID
             FROM class
             WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
-            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
             console.log(classData)
             if (classData.length === 0) {
                 return res.status(404).json({ error: 'Class entered was not found or inactive' });
             }
 
             const userRole = userData[0].userRole;
-    
+
             if (userRole != 0 && userRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
             }
 
             //To add Courses to class
             let addedCourses = 0;
-            if(courses && Array.isArray(courses) && courses.length > 0){
+            if (courses && Array.isArray(courses) && courses.length > 0) {
                 await db_connection.query('START TRANSACTION');
-                for (i of courseData){
+                for (i of courseData) {
                     const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE ClassID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
                     if (available.length === 0) {
                         const [result] = await db_connection.query('INSERT INTO ClassCourse (classID, CourseID) VALUES (?, ?)', [classData[0].classID, i.courseID]);
                         if (result.affectedRows === 1) {
-                            addedCourses+=1;
+                            addedCourses += 1;
                         } else {
                             // Rollback the transaction
                             await db_connection.query('ROLLBACK');
@@ -3225,22 +3233,22 @@ module.exports = {
                         }
                     }
                 }
-                if(addedCourses <= courseData.length){
+                if (addedCourses <= courseData.length) {
                     await db_connection.query('COMMIT');
                 }
             }
-            
+
 
             //To add Professors to class
             let addedProfs = 0;
-            if(profEmails && Array.isArray(profEmails) && profEmails.length > 0){
+            if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 await db_connection.query('START TRANSACTION');
-                for (i of profData){
+                for (i of profData) {
                     const [available] = await db_connection.query('SELECT * FROM professorClass WHERE ClassID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                     if (available.length === 0) {
                         const [result] = await db_connection.query('INSERT INTO professorClass (classID, professorID) VALUES (?, ?)', [classData[0].classID, i.profID]);
                         if (result.affectedRows === 1) {
-                            addedProfs+=1;
+                            addedProfs += 1;
                         } else {
                             // Rollback the transaction
                             await db_connection.query('ROLLBACK');
@@ -3248,16 +3256,16 @@ module.exports = {
                         }
                     }
                 }
-                if(addedProfs <= profData.length){
+                if (addedProfs <= profData.length) {
                     await db_connection.query('COMMIT');
                 }
             }
-            if( (profEmails && Array.isArray(profEmails) && profEmails.length > 0 && addedProfs <= profData.length) || (courses && Array.isArray(courses) && courses.length > 0 && addedCourses <= courseData.length)){
+            if ((profEmails && Array.isArray(profEmails) && profEmails.length > 0 && addedProfs <= profData.length) || (courses && Array.isArray(courses) && courses.length > 0 && addedCourses <= courseData.length)) {
                 await db_connection.query('COMMIT');
                 res.status(201).json({ message: 'Professors and Courses added successfully' });
             }
 
-        }catch(error){
+        } catch (error) {
             console.log(error)
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
@@ -3272,7 +3280,7 @@ module.exports = {
         }
     }],
 
-    deleteClassCourseProf: [webTokenValidator, async (req, res)=>{
+    deleteClassCourseProf: [webTokenValidator, async (req, res) => {
         /*
             JSON
             {
@@ -3287,15 +3295,15 @@ module.exports = {
         let db_connection;
 
         try {
-            const { batchYear, Dept, Section, Semester, courses, profEmails} = req.body;
+            const { batchYear, Dept, Section, Semester, courses, profEmails } = req.body;
             db_connection = await db.promise().getConnection();
-            console.log(profEmails,courses)
+            console.log(profEmails, courses)
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES classcourse WRITE, professorclass WRITE, userdata READ, Course READ, Department READ, class READ');
-    
+
             const userEmail = req.userEmail;
             console.log(userEmail)
-    
+
             // Fetch userRole based on the email and check if user is active
             const [userData] = await db_connection.query(`
             SELECT userRole
@@ -3305,10 +3313,10 @@ module.exports = {
             if (userData.length === 0) {
                 return res.status(404).json({ error: 'User not found or inactive' });
             }
-            
+
             // Fetch Courses passed as params and check if all are already present or is active
             let courseData
-            if(courses && Array.isArray(courses) && courses.length > 0){
+            if (courses && Array.isArray(courses) && courses.length > 0) {
                 const placeholdersc = courses.map(() => '?').join(', ');
                 let query = `
                     SELECT courseID
@@ -3324,7 +3332,7 @@ module.exports = {
 
             //Fetch prof and check if all the profs are available or active
             let profData
-            if(profEmails && Array.isArray(profEmails) && profEmails.length > 0){
+            if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 const placeholders = profEmails.map(() => '?').join(', ');
                 query = `
                     SELECT profID
@@ -3349,34 +3357,34 @@ module.exports = {
             if (deptData.length === 0) {
                 return res.status(404).json({ error: 'Department entered was not found or inactive' });
             }
-            
+
             // Fetch Class passed as param and check if that class is present or is active
             const [classData] = await db_connection.query(`
             SELECT classID
             FROM class
             WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
-            `, [batchYear,deptData[0].DeptID,Section,Semester]);
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
             console.log(classData)
             if (classData.length === 0) {
                 return res.status(404).json({ error: 'Class entered was not found or inactive' });
             }
 
             const userRole = userData[0].userRole;
-    
+
             if (userRole != 0 && userRole != 1) {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can access.' });
             }
 
             //To delete Courses of class
             let deletedCourses = 0;
-            if(courses && Array.isArray(courses) && courses.length > 0){
+            if (courses && Array.isArray(courses) && courses.length > 0) {
                 await db_connection.query('START TRANSACTION');
-                for (i of courseData){
+                for (i of courseData) {
                     const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE ClassID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
                     if (available.length === 0) {
                         const [result] = await db_connection.query('DELETE FROM ClassCourse WHERE classID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
                         if (result.affectedRows === 1) {
-                            deletedCourses+=1;
+                            deletedCourses += 1;
                         } else {
                             // Rollback the transaction
                             await db_connection.query('ROLLBACK');
@@ -3384,22 +3392,22 @@ module.exports = {
                         }
                     }
                 }
-                if(deletedCourses <= courseData.length){
+                if (deletedCourses <= courseData.length) {
                     await db_connection.query('COMMIT');
                 }
             }
-            
+
 
             //To delete Professors of class
             let deletedProfs = 0;
-            if(profEmails && Array.isArray(profEmails) && profEmails.length > 0){
+            if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 await db_connection.query('START TRANSACTION');
-                for (i of profData){
+                for (i of profData) {
                     const [available] = await db_connection.query('SELECT * FROM professorClass WHERE ClassID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                     if (available.length === 0) {
                         const [result] = await db_connection.query('DELETE FROM professorClass WHERE classID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                         if (result.affectedRows === 1) {
-                            deletedProfs+=1;
+                            deletedProfs += 1;
                         } else {
                             // Rollback the transaction
                             await db_connection.query('ROLLBACK');
@@ -3407,16 +3415,16 @@ module.exports = {
                         }
                     }
                 }
-                if(deletedProfs <= profData.length){
+                if (deletedProfs <= profData.length) {
                     await db_connection.query('COMMIT');
                 }
             }
-            if( (profEmails && Array.isArray(profEmails) && profEmails.length > 0 && deletedProfs <= profData.length) || (courses && Array.isArray(courses) && courses.length > 0 && deletedCourses <= courseData.length)){
+            if ((profEmails && Array.isArray(profEmails) && profEmails.length > 0 && deletedProfs <= profData.length) || (courses && Array.isArray(courses) && courses.length > 0 && deletedCourses <= courseData.length)) {
                 await db_connection.query('COMMIT');
                 return res.status(201).json({ message: 'Professors and Courses deleted successfully' });
             }
 
-        }catch(error){
+        } catch (error) {
             console.log(error)
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
