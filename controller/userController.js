@@ -1490,14 +1490,16 @@ module.exports = {
               "batchYear": "<batchYear>",
               "dept": "<dept>",
               "section": "<section>",
-              "semester": "<semester>"
+              "semester": "<semester>",
+              "studentName": [],
+              "RollNo": []
           }
         */
 
         let dbConnection;
 
         try {
-            const { batchYear, dept, section, semester } = req.body;
+            const { batchYear, dept, section, semester} = req.body;
 
             console.log(batchYear);
             console.log(dept);
@@ -1552,77 +1554,86 @@ module.exports = {
     }],
 
     addStudents: [webTokenValidator, async (req, res) => {
-        let db_connection;
+        /*
+          query
+          {
+              "batchYear": "<batchYear>",
+              "dept": "<dept>",
+              "section": "<section>",
+              "semester": "<semester>",
+              "studentName": [],
+              "RollNo": []
+          }
+        */
+        let dbConnection;
 
         try {
-            const students = req.body;
+            const { batchYear, dept, section, semester, stuName, RollNo} = req.body;
+            console.log(batchYear);
+            console.log(dept);
+            console.log(section);
+            console.log(semester,stuName,RollNo);
 
-            db_connection = await db.promise().getConnection();
+            dbConnection = await db.promise().getConnection();
 
-            // Begin a transaction
-            await db_connection.beginTransaction();
-            let currentUserEmail = req.userEmail
-            for (const student of students) {
-                const { RollNo, StdName, batchYear, Dept, Section, Semester } = student;
+            if (batchYear === undefined || dept === undefined || section === undefined || semester === undefined || stuName===undefined || RollNo===undefined) {
+                console.error('One of the parameters is undefined');
+                return res.status(400).json({ error: 'All parameters are required' });
+            }
+            await dbConnection.query('LOCK TABLES studentData s WRITE, class c READ, department d READ');
 
-                // Ensure all required fields are defined
-                if (!RollNo || !StdName || !batchYear || !Dept || !Section || !Semester) {
-                    await db_connection.rollback();
-                    return res.status(400).json({ error: 'All fields are required' });
-                }
 
-                // Validate the RollNo format
-                const pattern = /^[A-Z]{2}\.[A-Z]{2}\.[A-Z]{1}[0-9]{1}[A-Z]{3}[0-9]{5}$/;
-                if (!pattern.test(RollNo)) {
-                    await db_connection.rollback();
-                    return res.status(400).json({ error: 'Invalid roll number format' });
-                }
+            await dbConnection.query('START TRANSACTION');
 
-                // Fetch userRole based on currentUserEmail
-                const [currentUser] = await db_connection.query('SELECT userRole FROM USERDATA WHERE email = ?', [currentUserEmail]);
+            // Fetch userRole based on currentUserEmail
+            const [currentUser] = await dbConnection.query('SELECT userRole FROM USERDATA WHERE email = ?', [req.userEmail]);
 
-                if (currentUser.length === 0) {
-                    await db_connection.rollback();
-                    return res.status(404).json({ error: 'Current user not found' });
-                }
-
-                // Fetch courseID based on courseName
-                const [courseResult] = await db_connection.query('SELECT courseID FROM course WHERE courseName = ?', [courseName]);
-
-                if (courseResult.length === 0) {
-                    await db_connection.rollback();
-                    return res.status(400).send({ "message": "Course not found!" });
-                }
-
-                // Insert data into class table
-                const [classResult] = await db_connection.query(
-                    'INSERT INTO class (batchYear, DeptID, Section, courseID, Semester) VALUES (?, ?, ?, ?, ?)',
-                    [batchYear, Dept, Section, courseResult[0].courseID, Semester]
-                );
-
-                // Insert data into studentData table
-                const [result] = await db_connection.query(
-                    'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                    [RollNo, StdName, classResult.insertId]
-                );
-
-                if (result.affectedRows !== 1) {
-                    await db_connection.rollback();
-                    return res.status(500).json({ error: `Failed to add student: ${RollNo}` });
-                } else {
-                    // Log success for this student
-                    console.log(`Student added successfully: ${RollNo}`);
-                }
+            if (currentUser.length === 0) {
+                await dbConnection.query('ROLLBACK');
+                return res.status(402).json({ error: 'Current user not found' });
             }
 
-            // Commit the transaction
-            await db_connection.query('COMMIT');
-            res.status(201).json({ message: 'Students added successfully' });
+            // Fetch DeptID based on Dept
+            const [DeptResult] = await dbConnection.query('SELECT * FROM Department WHERE DeptName = ?', [dept]);
+
+            if (DeptResult.length === 0) {
+                await dbConnection.query('ROLLBACK');
+                return res.status(404).send({ "message": "Department not found!" });
+            }
+
+            // Insert data into class table
+            const [classResult] = await dbConnection.query(
+                'SELECT classID from class where batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ?',
+                [batchYear, DeptResult[0].DeptID, section, semester]
+            );
+            if (classResult.length == 0) {
+                await dbConnection.query('ROLLBACK');
+                return res.status(405).send({ "message": "Class not found!" });
+            }
+            const classID = classResult[0].classID
+            let addedStudents = 0;
+            // Insert data into studentData table
+            for (let i = 0; i < stuName.length; i++) {
+                const [result] = await dbConnection.query(
+                  'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
+                  [RollNo[i], stuName[i], classID]
+                );
+                console.log(`Inserted Student ${stuName[i]} with RollNo ${RollNo[i]} successfully`);
+                if(result.affectedRows==1){
+                    addedStudents+=1;
+                }
+              }
+              if(addedStudents == RollNo.length){
+                // Commit the transaction
+                await dbConnection.query('COMMIT');
+                res.status(201).json({ message: 'Students added successfully' });
+              }
         } catch (error) {
             console.error(error);
+            return res.status(403).json("Students already exists")
             // Rollback the transaction in case of an error
-            if (db_connection) {
-                await db_connection.rollback();
+            if (dbConnection) {
+                await dbConnection.query('ROLLBACK');
             }
 
             const time = new Date();
@@ -1631,8 +1642,8 @@ module.exports = {
             res.status(500).json({ error: 'Failed to add students' });
         } finally {
             // Release the database connection
-            if (db_connection) {
-                db_connection.release();
+            if (dbConnection) {
+                dbConnection.release();
             }
         }
     }],
