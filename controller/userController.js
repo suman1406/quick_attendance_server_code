@@ -300,6 +300,24 @@ module.exports = {
         try {
             await db_connection.query(`LOCK TABLES USERDATA WRITE`);
 
+            // Fetch userRole based on the email
+            const [userData] = await db_connection.query(`
+            SELECT userRole
+            FROM USERDATA
+            WHERE email = ? AND isActive = '1'
+            `, [req.userEmail]);
+
+            if (userData.length === 0) {
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            //Check if the delete operation is performed on the same user
+            if(req.userEmail == req.body.Email){
+                await db_connection.query(`UNLOCK TABLES`);
+                return res.status(406).send({ "message": "Admin can't delete himself / herself" });   
+            }
+
             // Check if admin exists
             let [adminToDelete] = await db_connection.query(
                 `SELECT * FROM USERDATA WHERE email = ? AND isActive = ? AND userRole = ?`,
@@ -2786,7 +2804,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES slots READ, class READ, userdata READ, Department READ');
+            await db_connection.query('LOCK TABLES slots READ, class READ, userdata READ, Department READ, classcourse READ, course READ');
 
             const userEmail = req.userEmail;
 
@@ -2817,8 +2835,8 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester, periodNo } = req.body;
-            if(batchYear==undefined||Dept==undefined||Section==undefined||Semester==undefined||periodNo==undefined){
+            const { batchYear, Dept, Section, Semester, periodNo, course } = req.body;
+            if(batchYear==undefined||Dept==undefined||Section==undefined||Semester==undefined||periodNo==undefined || course==undefined){
                 await db_connection.query('ROLLBACK');
                 return res.status(401).json({ error: 'Missing parameters' });
             }
@@ -2849,6 +2867,18 @@ module.exports = {
             }
             const classID = classData[0].classID;
             console.log(periods)
+
+            //get courseID from course
+            const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?',[course])
+            const courseID = courseData[0].courseID
+            console.log(courseID)
+
+            //Check if class has that course
+            const [classCourseData] = await db_connection.query('SELECT * FROM classcourse WHERE classID = ? AND courseID = ?',[classID,courseID])
+            if(classCourseData.length==0){
+                await db_connection.query('ROLLBACK')
+                return res.status(501).json({error:"This class doesn't offer this course"})
+            }
 
             let period;
             let slotIDlist = [];
@@ -2906,7 +2936,7 @@ module.exports = {
 
             // Fetch userRole based on the email
             const [userResult] = await db_connection.query(`
-            SELECT userRole
+            SELECT *
             FROM userdata
             WHERE email = ? AND isActive = '1'
             `, [userEmail]);
