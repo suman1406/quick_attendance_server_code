@@ -1516,7 +1516,7 @@ module.exports = {
         let dbConnection;
 
         try {
-            const { batchYear, dept, section, semester} = req.body;
+            const { batchYear, dept, section, semester } = req.body;
 
             console.log(batchYear);
             console.log(dept);
@@ -1585,15 +1585,15 @@ module.exports = {
         let dbConnection;
 
         try {
-            const { batchYear, dept, section, semester, stuName, RollNo} = req.body;
+            const { batchYear, dept, section, semester, stuName, RollNo } = req.body;
             console.log(batchYear);
             console.log(dept);
             console.log(section);
-            console.log(semester,stuName,RollNo);
+            console.log(semester, stuName, RollNo);
 
             dbConnection = await db.promise().getConnection();
 
-            if (batchYear === undefined || dept === undefined || section === undefined || semester === undefined || stuName===undefined || RollNo===undefined) {
+            if (batchYear === undefined || dept === undefined || section === undefined || semester === undefined || stuName === undefined || RollNo === undefined) {
                 console.error('One of the parameters is undefined');
                 return res.status(400).json({ error: 'All parameters are required' });
             }
@@ -1632,19 +1632,19 @@ module.exports = {
             // Insert data into studentData table
             for (let i = 0; i < stuName.length; i++) {
                 const [result] = await dbConnection.query(
-                  'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
-                  [RollNo[i], stuName[i], classID]
+                    'INSERT INTO studentData (RollNo, StdName, classID) VALUES (?, ?, ?)',
+                    [RollNo[i], stuName[i], classID]
                 );
                 console.log(`Inserted Student ${stuName[i]} with RollNo ${RollNo[i]} successfully`);
-                if(result.affectedRows==1){
-                    addedStudents+=1;
+                if (result.affectedRows == 1) {
+                    addedStudents += 1;
                 }
-              }
-              if(addedStudents == RollNo.length){
+            }
+            if (addedStudents == RollNo.length) {
                 // Commit the transaction
                 await dbConnection.query('COMMIT');
                 res.status(201).json({ message: 'Students added successfully' });
-              }
+            }
         } catch (error) {
             console.error(error);
             return res.status(403).json("Students already exists")
@@ -2790,7 +2790,7 @@ module.exports = {
 
     // -------------------Attendance Operations Starts--------------------------
 
-    returnSlotID: [webTokenValidator, async (req,res)=>{
+    returnSlotID: [webTokenValidator, async (req, res) => {
         /*
             JSON
             {
@@ -2835,8 +2835,8 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester, periodNo, course } = req.body;
-            if(batchYear==undefined||Dept==undefined||Section==undefined||Semester==undefined||periodNo==undefined || course==undefined){
+            const { batchYear, Dept, Section, Semester, periodNo } = req.body;
+            if (batchYear == undefined || Dept == undefined || Section == undefined || Semester == undefined || periodNo == undefined) {
                 await db_connection.query('ROLLBACK');
                 return res.status(401).json({ error: 'Missing parameters' });
             }
@@ -2850,8 +2850,8 @@ module.exports = {
             `, [Dept]);
             console.log(deptData)
             if (deptData.length === 0) {
-            await db_connection.query('ROLLBACK');
-            return res.status(404).json({ error: 'Department entered was not found or inactive' });
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Department entered was not found or inactive' });
             }
 
             //check if class is already present
@@ -2883,19 +2883,19 @@ module.exports = {
             let period;
             let slotIDlist = [];
             // Check if slot is present slots table
-            for(period of periods){
-                const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?',[classID,period]);
+            for (period of periods) {
+                const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?', [classID, period]);
                 console.log(available)
-                if(available.length==0){
+                if (available.length == 0) {
                     await db_connection.query('ROLLBACK');
                     return res.status(500).json({ error: 'Period entered does not exist' });
                 }
-                else{
+                else {
                     slotIDlist.push(available[0].slotID)
                 }
             }
-            return res.status(200).json({"SlotIDs":slotIDlist})
-        }catch(error){
+            return res.status(200).json({ "SlotIDs": slotIDlist })
+        } catch (error) {
             if (db_connection) {
                 await db_connection.query('ROLLBACK');
             }
@@ -2960,19 +2960,21 @@ module.exports = {
             const { RollNo, date, SlotIDs, courseName } = req.body;
 
             //Check if student is present
-            const [stuData] = await db_connection.query('SELECT * FROM StudentData WHERE RollNo = ?',[RollNo])
-            if(stuData.length==0){
+            const [stuData] = await db_connection.query('SELECT * FROM StudentData WHERE RollNo = ?', [RollNo])
+            if (stuData.length == 0) {
                 // Rollback the transaction
                 await db_connection.query('ROLLBACK');
                 return res.status(500).json({ error: 'Student Doesnt Exist' });
             }
 
+
             //get courseID from course
-            const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?',[courseName])
+            const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?', [courseName])
+            console.log(courseData)
             const courseID = courseData[0].courseID
 
-            for(slot of SlotIDs){
-                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES (?, ?, ?, ?)', [RollNo, 1, date, slot,courseID]);
+            for (slot of SlotIDs) {
+                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES (?, ?, ?,?, ?)', [RollNo, 1, date, slot, courseID]);
                 if (result.affectedRows === 1) {
                     // Commit the transaction
                     await db_connection.query('COMMIT');
