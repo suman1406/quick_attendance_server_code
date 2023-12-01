@@ -2822,7 +2822,7 @@ module.exports = {
                 await db_connection.query('ROLLBACK');
                 return res.status(401).json({ error: 'Missing parameters' });
             }
-            periods = periodNo.split(',')
+            let periods = periodNo.split(',')
 
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
@@ -2879,15 +2879,13 @@ module.exports = {
         }
     }],
 
-    addAttendance: async (req, res) => {
+    addAttendance: [webTokenValidator, async (req, res) => {
         /*
             JSON
             {
                 "RollNo": "<RollNo>",
-                "attdStatus": "<attdStatus>",
                 "timestamp": "<timestamp>",
-                "classID: <class id>",
-                "PeriodNo: < period no>"
+                "slotID: [<slot id>,..]",
             }
         */
 
@@ -2897,33 +2895,59 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES attendance WRITE');
+            await db_connection.query('LOCK TABLES attendance WRITE, userdata READ');
+
+            const userEmail = req.userEmail;
+
+            if (!userEmail || !validator.isEmail(userEmail)) {
+                return res.status(400).json({ error: 'Invalid user email' });
+            }
+
+            // Fetch userRole based on the email
+            const [userResult] = await db_connection.query(`
+            SELECT userRole
+            FROM userdata
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+
+            if (userResult.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            const cUserRole = userResult[0].userRole;
+
+            if (cUserRole != 0 && cUserRole != 1) {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+            }
 
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { RollNo, attdStatus, timestamp, classID, PeriodNo } = req.body;
+            const { RollNo, timestamp, SlotIDs } = req.body;
 
-            const [s] = await db_connection.query('SELECT slotID FROM slots WHERE ClassID = ? AND PeriodNo = ?', [classID, PeriodNo]);
-            const slotID = s[0].slotID
-
-            // Validate attdStatus
-            const validStatusValues = ['0', '1', '2', '3', '4'];
-            if (!validStatusValues.includes(attdStatus)) {
-                return res.status(400).json({ error: 'Invalid attendance status value' });
-            }
-
-            const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES (?, ?, ?, ?)', [RollNo, attdStatus, timestamp, slotID]);
-
-            if (result.affectedRows === 1) {
-                // Commit the transaction
-                await db_connection.query('COMMIT');
-                res.status(201).json({ message: 'Attendance recorded successfully' });
-            } else {
+            //Check if student is present
+            const [stuData] = await db_connection.query('SELECT * FROM StudentData WHERE RollNo = ?',[RollNo])
+            if(stuData.length==0){
                 // Rollback the transaction
                 await db_connection.query('ROLLBACK');
-                res.status(500).json({ error: 'Failed to record attendance' });
+                return res.status(500).json({ error: 'Student Doesnt Exist' });
             }
+
+            for(slot of SlotIDs){
+                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES (?, ?, ?, ?)', [RollNo, 1, timestamp, slot]);
+                if (result.affectedRows === 1) {
+                    // Commit the transaction
+                    await db_connection.query('COMMIT');
+                } else {
+                    // Rollback the transaction
+                    await db_connection.query('ROLLBACK');
+                    return res.status(500).json({ error: 'Failed to record attendance' });
+                }
+            }
+            return res.status(201).json({ message: 'Attendance recorded successfully' });
         } catch (error) {
             console.error(error);
             // Rollback the transaction in case of an error
@@ -2937,7 +2961,7 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    }],
 
     getAttendanceForSlot: async (req, res) => {
         /*
