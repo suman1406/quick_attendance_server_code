@@ -84,9 +84,11 @@ CREATE TABLE IF NOT EXISTS attendance (
     attdStatus CHAR(1) NOT NULL,
     AttdDate DATE NOT NULL,
     slotID INT NOT NULL,
+    courseID INT NOT NULL,
     PRIMARY KEY (RollNo, AttdDate),
     FOREIGN KEY (RollNo) REFERENCES studentData(RollNo),
-    FOREIGN KEY (slotID) REFERENCES Slots(slotID)
+    FOREIGN KEY (slotID) REFERENCES Slots(slotID),
+    FOREIGN KEY (courseID) REFERENCES course(courseID)
 );
 
 CREATE TABLE IF NOT EXISTS USERREGISTER (
@@ -304,23 +306,23 @@ INSERT INTO Slots (classID, periodNo) VALUES (5, 3);
 
 
 -- Insert Statements for the `attendance` Table
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A001', 'P', '2023-01-01', 1);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A002', 'A', '2023-01-01', 2);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A003', 'P', '2023-01-01', 3);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A004', 'A', '2023-01-01', 4);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A005', 'P', '2023-01-01', 5);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A006', 'A', '2023-01-01', 1);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A007', 'P', '2023-01-01', 2);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A008', 'A', '2023-01-01', 3);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A009', 'P', '2023-01-01', 4);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A010', 'A', '2023-01-01', 5);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A011', 'P', '2023-01-01', 1);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A012', 'A', '2023-01-01', 2);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A013', 'P', '2023-01-01', 3);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A014', 'A', '2023-01-01', 4);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A015', 'P', '2023-01-01', 5);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A016', 'A', '2023-01-01', 1);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A017', 'P', '2023-01-01', 2);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A018', 'A', '2023-01-01', 3);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A019', 'P', '2023-01-01', 4);
-INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES ('A020', 'A', '2023-01-01', 5);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A001', 'P', '2023-01-01', 1,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A002', 'A', '2023-01-01', 2,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A003', 'P', '2023-01-01', 3,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A004', 'A', '2023-01-01', 4,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A005', 'P', '2023-01-01', 5,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A006', 'A', '2023-01-01', 1,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A007', 'P', '2023-01-01', 2,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A008', 'A', '2023-01-01', 3,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A009', 'P', '2023-01-01', 4,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A010', 'A', '2023-01-01', 5,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A011', 'P', '2023-01-01', 1,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A012', 'A', '2023-01-01', 2,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A013', 'P', '2023-01-01', 3,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A014', 'A', '2023-01-01', 4,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A015', 'P', '2023-01-01', 5,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A016', 'A', '2023-01-01', 1,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A017', 'P', '2023-01-01', 2,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A018', 'A', '2023-01-01', 3,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A019', 'P', '2023-01-01', 4,1);
+INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES ('A020', 'A', '2023-01-01', 5,1);

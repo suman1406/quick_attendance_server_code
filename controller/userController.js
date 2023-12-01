@@ -2886,6 +2886,7 @@ module.exports = {
                 "RollNo": "<RollNo>",
                 "timestamp": "<timestamp>",
                 "slotID: [<slot id>,..]",
+                "courseName": "<courseName>"
             }
         */
 
@@ -2895,7 +2896,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES attendance WRITE, userdata READ');
+            await db_connection.query('LOCK TABLES attendance WRITE, userdata READ, course READ');
 
             const userEmail = req.userEmail;
 
@@ -2926,7 +2927,7 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { RollNo, date, SlotIDs } = req.body;
+            const { RollNo, date, SlotIDs, courseName } = req.body;
 
             //Check if student is present
             const [stuData] = await db_connection.query('SELECT * FROM StudentData WHERE RollNo = ?',[RollNo])
@@ -2936,8 +2937,12 @@ module.exports = {
                 return res.status(500).json({ error: 'Student Doesnt Exist' });
             }
 
+            //get courseID from course
+            const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?',[courseName])
+            const courseID = courseData[0].courseID
+
             for(slot of SlotIDs){
-                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES (?, ?, ?, ?)', [RollNo, 1, date, slot]);
+                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES (?, ?, ?, ?)', [RollNo, 1, date, slot,courseID]);
                 if (result.affectedRows === 1) {
                     // Commit the transaction
                     await db_connection.query('COMMIT');
