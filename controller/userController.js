@@ -2835,8 +2835,9 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { batchYear, Dept, Section, Semester, periodNo } = req.body;
-            if (batchYear == undefined || Dept == undefined || Section == undefined || Semester == undefined || periodNo == undefined) {
+            const { batchYear, Dept, Section, Semester, course, periodNo } = req.body;
+            console.log(batchYear, Dept, Section, Semester, course, periodNo)
+            if (batchYear == undefined || Dept == undefined || Section == undefined || Semester == undefined || periodNo == undefined || course == undefined) {
                 await db_connection.query('ROLLBACK');
                 return res.status(401).json({ error: 'Missing parameters' });
             }
@@ -2871,7 +2872,7 @@ module.exports = {
             //get courseID from course
             const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?',[course])
             const courseID = courseData[0].courseID
-            console.log(courseID)
+            console.log("#############"+courseID)
 
             //Check if class has that course
             const [classCourseData] = await db_connection.query('SELECT * FROM classcourse WHERE classID = ? AND courseID = ?',[classID,courseID])
@@ -2881,6 +2882,7 @@ module.exports = {
             }
 
             let period;
+            console.log(periods);
             let slotIDlist = [];
             // Check if slot is present slots table
             for (period of periods) {
@@ -2973,9 +2975,16 @@ module.exports = {
             console.log(courseData)
             const courseID = courseData[0].courseID
 
-            for (slot of SlotIDs) {
+            let addedAttd = 0
+            let slot;
+            const Slots = JSON.parse(SlotIDs);
+            console.log("#######" + typeof (SlotIDs))
+
+            for (slot of Slots) {
+                console.log(slot)
                 const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID, courseID) VALUES (?, ?, ?,?, ?)', [RollNo, 1, date, slot, courseID]);
                 if (result.affectedRows === 1) {
+                    addedAttd+=1;
                     // Commit the transaction
                     await db_connection.query('COMMIT');
                 } else {
@@ -2983,6 +2992,10 @@ module.exports = {
                     await db_connection.query('ROLLBACK');
                     return res.status(500).json({ error: 'Failed to record attendance' });
                 }
+            }
+            if(addedAttd == SlotIDs.length){
+                // Commit the transaction
+                await db_connection.query('COMMIT');
             }
             return res.status(201).json({ message: 'Attendance recorded successfully' });
         } catch (error) {
