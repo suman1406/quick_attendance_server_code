@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     AttdDate DATE NOT NULL,
     slotID INT NOT NULL,
     courseID INT NOT NULL,
-    PRIMARY KEY (RollNo, AttdDate),
+    PRIMARY KEY (RollNo, AttdDate,slotID),
     FOREIGN KEY (RollNo) REFERENCES studentData(RollNo),
     FOREIGN KEY (slotID) REFERENCES Slots(slotID),
     FOREIGN KEY (courseID) REFERENCES course(courseID)
