@@ -2926,7 +2926,7 @@ module.exports = {
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const { RollNo, timestamp, SlotIDs } = req.body;
+            const { RollNo, date, SlotIDs } = req.body;
 
             //Check if student is present
             const [stuData] = await db_connection.query('SELECT * FROM StudentData WHERE RollNo = ?',[RollNo])
@@ -2937,7 +2937,7 @@ module.exports = {
             }
 
             for(slot of SlotIDs){
-                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, timestamp, slotID) VALUES (?, ?, ?, ?)', [RollNo, 1, timestamp, slot]);
+                const [result] = await db_connection.query('INSERT INTO attendance (RollNo, attdStatus, AttdDate, slotID) VALUES (?, ?, ?, ?)', [RollNo, 1, date, slot]);
                 if (result.affectedRows === 1) {
                     // Commit the transaction
                     await db_connection.query('COMMIT');
