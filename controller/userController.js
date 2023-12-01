@@ -1154,7 +1154,6 @@ module.exports = {
 
     // -----------------------Student Operations Start---------------------------
 
-
     addStudent: [webTokenValidator, async (req, res) => {
 
         let db_connection;
@@ -1648,7 +1647,6 @@ module.exports = {
         }
     }],
 
-
     fetchStudentData: [webTokenValidator, async (req, res) => {
         let db_connection;
 
@@ -1693,7 +1691,6 @@ module.exports = {
             }
         }
     }],
-
 
     // -------------------Student Operations Ends------------------------------
 
@@ -2745,7 +2742,7 @@ module.exports = {
             db_connection.release();
         }
     }],
-    
+
     allDepts: [webTokenValidator, async (req, res) => {
         let db_connection;
 
@@ -2770,9 +2767,117 @@ module.exports = {
             db_connection?.release();
         }
     }],
+
     // -------------------Department Operations Ends-----------------------
 
     // -------------------Attendance Operations Starts--------------------------
+
+    returnSlotID: [webTokenValidator, async (req,res)=>{
+        /*
+            JSON
+            {
+
+            }
+        */
+
+        let db_connection;
+
+        try {
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES slots READ, class READ, userdata READ, Department READ');
+
+            const userEmail = req.userEmail;
+
+            if (!userEmail || !validator.isEmail(userEmail)) {
+                return res.status(400).json({ error: 'Invalid user email' });
+            }
+
+            // Fetch userRole based on the email
+            const [userResult] = await db_connection.query(`
+            SELECT userRole
+            FROM userdata
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+
+            if (userResult.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            const cUserRole = userResult[0].userRole;
+
+            if (cUserRole != 0 && cUserRole != 1) {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+            }
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const { batchYear, Dept, Section, Semester, periodNo } = req.body;
+            if(batchYear==undefined||Dept==undefined||Section==undefined||Semester==undefined||periodNo==undefined){
+                await db_connection.query('ROLLBACK');
+                return res.status(401).json({ error: 'Missing parameters' });
+            }
+            periods = periodNo.split(',')
+
+            //Check if Dept is available
+            const [deptData] = await db_connection.query(`
+            SELECT DeptID
+            FROM department
+            WHERE DeptName = ? AND isActive = '1'
+            `, [Dept]);
+            console.log(deptData)
+            if (deptData.length === 0) {
+            await db_connection.query('ROLLBACK');
+            return res.status(404).json({ error: 'Department entered was not found or inactive' });
+            }
+
+            //check if class is already present
+            const [classData] = await db_connection.query(`
+            SELECT classID
+            FROM class
+            WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
+            console.log(classData)
+            if (classData.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Class entered is not present' });
+            }
+            const classID = classData[0].classID;
+            console.log(periods)
+
+            let period;
+            let slotIDlist = [];
+            // Check if slot is present slots table
+            for(period of periods){
+                const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?',[classID,period]);
+                console.log(available)
+                if(available.length==0){
+                    await db_connection.query('ROLLBACK');
+                    return res.status(500).json({ error: 'Period entered does not exist' });
+                }
+                else{
+                    slotIDlist.push(available[0].slotID)
+                }
+            }
+            return res.status(200).json({"SlotIDs":slotIDlist})
+        }catch(error){
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - SlotID returned - ${error}\n`);
+            res.status(500).json({ error: 'Failed to return SlotID' });
+        } finally {
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    }],
 
     addAttendance: async (req, res) => {
         /*

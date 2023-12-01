@@ -68,7 +68,7 @@ router.post('/add-class-course-prof', userWebController.addClassCourseProf);
 router.delete('/delete-prof-course', userWebController.deleteProfCourse);
 router.delete('/delete-class-course-prof', userWebController.deleteClassCourseProf);
 
-
+router.post('/req-slotID', userWebController.returnSlotID);
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);
 router.post('/attendance/:id/:date', userWebController.updateAttendanceStatus);
