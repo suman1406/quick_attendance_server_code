@@ -3000,7 +3000,7 @@ module.exports = {
         }
     }],
 
-    getAttendanceForSlot: async (req, res) => {
+    getAttendanceForSlot: [webTokenValidator ,async (req, res) => {
         /*
             queries {
                 classID: <class id>
@@ -3041,7 +3041,7 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    },
+    }],
 
     updateAttendanceStatus: async (req, res) => {
         /*
@@ -3097,6 +3097,101 @@ module.exports = {
             db_connection.release();
         }
     },
+
+    getAttendanceForCourse: [webTokenValidator, async (req,res) => {
+        let db_connection;
+        try{
+            db_connection = await db.promise().getConnection();
+
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES attendance READ, userdata READ, course READ,slots READ, class READ, department READ');
+
+            const userEmail = req.userEmail;
+
+            if (!userEmail || !validator.isEmail(userEmail)) {
+                return res.status(400).json({ error: 'Invalid user email' });
+            }
+
+            // Fetch userRole based on the email
+            const [userResult] = await db_connection.query(`
+            SELECT *
+            FROM userdata
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+
+            if (userResult.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            const cUserRole = userResult[0].userRole;
+
+            if (cUserRole != 0 && cUserRole != 1) {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+            }
+
+            // Start a transaction
+            await db_connection.query('START TRANSACTION');
+
+            const { batchYear, Semester, Section, Dept, courseName } = req.body;
+
+            //Check if Dept is available
+            const [deptData] = await db_connection.query(`
+            SELECT DeptID
+            FROM department
+            WHERE DeptName = ? AND isActive = '1'
+            `, [Dept]);
+            console.log(deptData)
+            if (deptData.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Department entered was not found or inactive' });
+            }
+
+            //check if class is already present
+            const [classData] = await db_connection.query(`
+            SELECT classID
+            FROM class
+            WHERE batchYear = ? AND DeptID = ? AND Section = ? AND Semester = ? AND isActive = '1'
+            `, [batchYear, deptData[0].DeptID, Section, Semester]);
+            console.log(classData)
+            if (classData.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Class entered is not present' });
+            }
+            const classID = classData[0].classID
+
+            const [courseAvai] = await db_connection.query('SELECT courseID FROM Course WHERE courseName = ?',[courseName])
+            if (courseAvai.length === 0) {
+                await db_connection.query('ROLLBACK');
+                return res.status(404).json({ error: 'Course entered is not present' });
+            }
+
+            const [attendanceOfCourse] = await db_connection.query(`
+            SELECT RollNo, count(*) AS TOT_ATTD FROM attendance 
+            WHERE slotID in (SELECT slotID FROM slots WHERE classID = ?) 
+            AND CourseID = ? GROUP BY RollNo`
+            ,[classID,courseAvai[0].courseID])
+            console.log(attendanceOfCourse)
+
+            return res.status(200).json(attendanceOfCourse)
+
+        }catch(error){
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query('ROLLBACK');
+            }
+            const time = new Date();
+            fs.appendFileSync('logs/errorLogs.txt', `${time.toISOString()} - getAttCourse - ${error}\n`);
+            res.status(500).json({ error: 'Failed to retrive attd' });
+        }finally{
+            // Unlock the tables
+            await db_connection.query('UNLOCK TABLES');
+            db_connection.release();
+        }
+    }],
 
     // -------------------Attendance Operations Ends----------------------------
 

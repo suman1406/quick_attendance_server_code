@@ -72,5 +72,6 @@ router.post('/req-slotID', userWebController.returnSlotID);
 router.post('/add-attendance', userWebController.addAttendance);
 router.get('/attendance/:id', userWebController.getAttendanceForSlot);
 router.post('/attendance/:id/:date', userWebController.updateAttendanceStatus);
+router.post('/attd-coursewise', userWebController.getAttendanceForCourse);
 
 module.exports = router;
