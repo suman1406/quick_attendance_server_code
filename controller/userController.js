@@ -24,8 +24,6 @@ module.exports = {
         return res.status(200).send({ "message": 'Ok' });
     },
 
-    // -----------------------User Operations Start---------------------------
-
     getAllUsers: [webTokenValidator, async (req, res) => {
         /*
         Headers: {
