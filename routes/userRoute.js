@@ -8,6 +8,7 @@ const linkTablesController = require('../controller/linkTablesController');
 const slotController = require('../controller/slotController');
 const classController = require('../controller/classController');
 const authController = require('../controller/authController');
+const departmentController = require('../controller/departmentController');
 
 // Test route
 router.get('/test', userController.test);
@@ -77,7 +78,7 @@ router.delete('/delete-class-course-prof', linkTablesController.deleteClassCours
 
 router.post('/req-slotID', attendanceController.returnSlotID);
 router.post('/add-attendance', attendanceController.addAttendance);
-router.get('/attendance/:id', attendanceController.getAttendanceForSlot);
+router.get('/attendance-slot', attendanceController.getAttendanceForSlot);
 router.post('/attendance/:id/:date', attendanceController.updateAttendanceStatus);
 router.post('/attd-coursewise', attendanceController.getAttendanceForCourse);
 
