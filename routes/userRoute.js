@@ -70,7 +70,7 @@ router.delete('/delete-class-course-prof', userWebController.deleteClassCoursePr
 
 router.post('/req-slotID', userWebController.returnSlotID);
 router.post('/add-attendance', userWebController.addAttendance);
-router.get('/attendance/:id', userWebController.getAttendanceForSlot);
+router.get('/get-attd-slot', userWebController.getAttendanceForSlot);
 router.post('/attendance/:id/:date', userWebController.updateAttendanceStatus);
 router.post('/attd-coursewise', userWebController.getAttendanceForCourse);
 
