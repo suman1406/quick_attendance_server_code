@@ -232,8 +232,9 @@ module.exports = {
     getAttendanceForSlot: [webTokenValidator, async (req, res) => {
         /*
             queries {
-                classID: <class id>
-                PeriodNo: < period no>       
+                slotID: <slot id>
+                courseName: <courseName>
+                date: <date>
             }
         */
 
@@ -242,21 +243,56 @@ module.exports = {
         try {
             db_connection = await db.promise().getConnection();
 
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query('LOCK TABLES attendance READ, userdata READ, course READ');
+
+            const userEmail = req.userEmail;
+
+            if (!userEmail || !validator.isEmail(userEmail)) {
+                return res.status(400).json({ error: 'Invalid user email' });
+            }
+
+            // Fetch userRole based on the email
+            const [userResult] = await db_connection.query(`
+            SELECT *
+            FROM userdata
+            WHERE email = ? AND isActive = '1'
+            `, [userEmail]);
+
+            if (userResult.length === 0) {
+                return res.status(404).json({ error: 'User not found or inactive' });
+            }
+
+            const cUserRole = userResult[0].userRole;
+
+            if (cUserRole != 0 && cUserRole != 1) {
+                // Unlock the tables
+                await db_connection.query('UNLOCK TABLES');
+                db_connection.release();
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+            }
+
             // Start a transaction
             await db_connection.query('START TRANSACTION');
 
-            const classID = req.query.classID;
-            const PeriodNo = req.query.PeriodNo;
-            const Date = req.query.date;
-            const [s] = await db_connection.query('SELECT slotID FROM slots WHERE ClassID = ? AND PeriodNo = ?', [classID, PeriodNo]);
-            const slotID = s[0].slotID;
+            const { date, slotID, courseName } = req.query;
+            console.log(date, slotID, courseName)
 
-            const [rows] = await db_connection.query('SELECT (RollNO, attstatus) FROM attendance WHERE slotID = ? and ', [slotID]);
+            //get courseID from course
+            const [courseData] = await db_connection.query('SELECT courseID from course WHERE courseName = ?', [courseName])
+            console.log(courseData)
+            const courseID = courseData[0].courseID
 
-            // Commit the transaction
-            await db_connection.query('COMMIT');
-
-            res.json(rows);
+            const [AttdData] = await db_connection.query('SELECT RollNo, attdStatus from Attendance WHERE courseID = ? AND slotID = ? AND AttdDate = ?', [courseID, slotID, date])
+            console.log(AttdData)
+            if (AttdData.length > 0) {
+                db_connection.query("COMMIT");
+                res.status(200).json(AttdData)
+            }
+            else {
+                db_connection.query("ROLLBACK");
+                res.status(501).json({ msg: "No students Present" })
+            }
         } catch (error) {
             console.error(error);
             // Rollback the transaction in case of an error
