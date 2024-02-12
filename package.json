@@ -30,6 +30,7 @@
     "helmet": "^7.1.0",
     "ip": "^1.1.8",
     "mysql2": "^3.6.3",
+    "ngrok": "^5.0.0-beta.2",
     "nodemailer": "^6.9.7",
     "nodemon": "^3.0.2",
     "otp-generator": "^4.0.1",
