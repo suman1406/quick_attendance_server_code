@@ -437,7 +437,7 @@ module.exports = {
             SELECT RollNo, count(*) AS TOT_ATTD FROM attendance 
             WHERE slotID in (SELECT slotID FROM slots WHERE classID = ?) 
             AND CourseID = ? GROUP BY RollNo`
-                , [classID, courseAvai[0].courseID])    
+                , [classID, courseAvai[0].courseID])
             console.log(attendanceOfCourse)
 
             return res.status(200).json(attendanceOfCourse)
