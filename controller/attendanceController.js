@@ -557,7 +557,7 @@ module.exports = {
           JOIN studentdata sd ON a.RollNo = sd.RollNo
           WHERE a.slotID IN (SELECT slotID FROM slots WHERE classID = ?) 
           AND a.courseID = ?
-          GROUP BY a.RollNo, sd.StdName, a.AttDateTime
+          GROUP BY a.RollNo, sd.StdName, a.AttDateTime, a.slotID
           ORDER BY a.AttDateTime`,
           [classID, courseAvai[0].courseID]
         );
