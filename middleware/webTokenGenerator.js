@@ -7,7 +7,7 @@ async function createToken(data) {
     data.secret_key = secret_key;
     const private_key = fs.readFileSync('./RSA/private_key.pem');
     var token = "";
-    token = await sign(data, private_key, { expiresIn: '240 m' });
+    token = await sign(data, private_key, { expiresIn: '1440 m' });
 
     return token;
 }

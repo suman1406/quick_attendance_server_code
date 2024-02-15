@@ -22,6 +22,10 @@ const establishConnection = require('./initializeConnection.js');
 const fs = require('fs');
 const ngrok = require('ngrok');
 
+const ngrok = require('ngrok');
+
+const http = require('http');
+
 const concurrencyLimit = os.cpus().length;
 const PORT = process.env.PORT || 8080;
 
@@ -67,6 +71,15 @@ if (cluster.isPrimary) {
         const url = await ngrok.connect({
             addr: PORT,
             authtoken: process.env.NGROK_AUTH_TOKEN, // Replace with your Ngrok auth token
+        });
+        console.log(`[MESSAGE]: Ngrok tunnel is live at ${url}`);
+    })();
+
+    // Start Ngrok
+    (async () => {
+        const url = await ngrok.connect({
+            addr: PORT,
+            authtoken: process.env.NGROK_AUTH_TOKEN,
         });
         console.log(`[MESSAGE]: Ngrok tunnel is live at ${url}`);
     })();

@@ -145,7 +145,7 @@ INSERT INTO Department (DeptName) VALUES ('Telecommunication Engineering');
 INSERT INTO USERDATA (email, password, profName, userRole) VALUES
 ('thanuskumaara@gmail.com','2a27ad2744e860e4dcf47b191a2afb795abc2bc800a8833f73d90f50ffa69383','Thanus Kumaar','1'),
 ('psuman1406@gmail.com', '735701f285cb9253fcff9649a0f7a09f27e5b5967030ded8baba4c5731683636', 'P Suman', '1'),
-('kalyanguru18@gmail.com', '15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225', 'Kalyan', '0'),
+('kalyanguru18@gmail.com', '15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225', 'Kalyan', '1'),
 ('prof2@example.com', 'password2', 'Professor 2', '0'),
 ('prof3@example.com', 'password3', 'Professor 3', '0'),
 ('staff1@example.com', 'password4', 'Staff 1', '0'),
