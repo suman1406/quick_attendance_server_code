@@ -76,10 +76,10 @@ router.post('/add-class-course-prof', linkTablesController.addClassCourseProf);
 router.delete('/delete-prof-course', linkTablesController.deleteProfCourse);
 router.delete('/delete-class-course-prof', linkTablesController.deleteClassCourseProf);
 
-router.post('/req-slotID', userWebController.returnSlotID);
-router.post('/add-attendance', userWebController.addAttendance);
-router.get('/get-attd-slot', userWebController.getAttendanceForSlot);
-router.post('/attendance/:id/:date', userWebController.updateAttendanceStatus);
-router.post('/attd-coursewise', userWebController.getAttendanceForCourse);
+router.post('/req-slotID', attendanceController.returnSlotID);
+router.post('/add-attendance', attendanceController.addAttendance);
+router.get('/get-attd-slot', attendanceController.getAttendanceForSlot);
+router.post('/attendance/:id/:date', attendanceController.updateAttendanceStatus);
+router.post('/attd-coursewise', attendanceController.getAttendanceForCourse);
 
 module.exports = router;

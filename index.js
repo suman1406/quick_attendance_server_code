@@ -20,6 +20,7 @@ require('dotenv').config();
 const establishConnection = require('./initializeConnection.js');
 
 const fs = require('fs');
+const ngrok = require('ngrok');
 
 const concurrencyLimit = os.cpus().length;
 const PORT = process.env.PORT || 8080;
@@ -62,6 +63,13 @@ if (cluster.isPrimary) {
     for (let i = 0; i < concurrencyLimit; i++) {
         cluster.fork();
     }
+    (async () => {
+        const url = await ngrok.connect({
+            addr: PORT,
+            authtoken: process.env.NGROK_AUTH_TOKEN, // Replace with your Ngrok auth token
+        });
+        console.log(`[MESSAGE]: Ngrok tunnel is live at ${url}`);
+    })();
 
 } else {
     server.listen(PORT, (err) => {
