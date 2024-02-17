@@ -247,10 +247,11 @@ module.exports = {
         );
         console.log(courseData);
         const courseID = courseData[0].courseID;
-
+        console.log(SlotIDs)
+        let slotIDs = SlotIDs.substring(1, SlotIDs.length - 1).split(",");
         let addedAttd = 0;
         let slot;
-        for (slot of SlotIDs) {
+        for (slot of slotIDs) {
           console.log(slot);
           const [result] = await db_connection.query(
             "INSERT INTO attendance (RollNo, attdStatus, AttDateTime, slotID, courseID) VALUES (?, ?, ?,?, ?)",
@@ -281,6 +282,7 @@ module.exports = {
         if (db_connection) {
           await db_connection.query("ROLLBACK");
         }
+        time = new Date();
         fs.appendFileSync(
           "logs/errorLogs.txt",
           `${time.toISOString()} - addAttendance - ${error}\n`
