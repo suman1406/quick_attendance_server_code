@@ -285,7 +285,7 @@ module.exports = {
                 userRole: userRole,
             });
 
-            mailer.reset_PW_OTP([professor].profName, otp, req.body.email);
+            mailer.reset_PW_OTP(professor[0].profName, otp, req.body.email);
 
             return res.status(200).send({
                 message: "OTP sent to email.",
@@ -315,10 +315,10 @@ module.exports = {
         }
         */
         if (
-            req.body.userEmail === null ||
-            req.body.userEmail === undefined ||
-            req.body.userEmail === "" ||
-            !validator.isEmail(req.body.userEmail) ||
+            req.body.email === null ||
+            req.body.email === undefined ||
+            req.body.email === "" ||
+            !validator.isEmail(req.body.email) ||
             req.body.otp === null ||
             req.body.otp === undefined ||
             req.body.otp === ""
@@ -332,14 +332,14 @@ module.exports = {
             await db_connection.query(`LOCK TABLES USERDATA READ, USERREGISTER READ`);
             let [professor] = await db_connection.query(
                 `SELECT * FROM USERDATA WHERE email = ?`,
-                [req.body.userEmail]
+                [req.body.email]
             );
             let [userRegister] = await db_connection.query(
                 `SELECT otp, createdAt FROM USERREGISTER WHERE email = ?`,
-                [req.body.userEmail]
+                [req.body.email]
             );
 
-            if (professor.length === 0 || userRegister.length === 0) {
+            if (professor.length == 0 || userRegister.length == 0) {
                 await db_connection.query(`UNLOCK TABLES`);
                 return res.status(401).send({ message: "Invalid professor or OTP." });
             }
@@ -464,9 +464,9 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES userdata READ');
+            await db_connection.query('LOCK TABLES USERDATA READ');
 
-            const [rows] = await db_connection.query('SELECT DISTINCT userRole FROM userData WHERE isActive = 1');
+            const [rows] = await db_connection.query('SELECT DISTINCT userRole FROM USERDATA WHERE isActive = 1');
             const userRole = rows.map(row => row.userRole);
 
             res.status(200).json({ userRole: userRole });

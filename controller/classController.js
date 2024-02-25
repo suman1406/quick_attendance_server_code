@@ -51,7 +51,7 @@ module.exports = {
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `, [Dept]);
             console.log(deptData)
@@ -159,7 +159,7 @@ module.exports = {
             SELECT d.DeptName, c.Section, c.Semester, c.batchYear
             FROM ProfessorClass pc
             JOIN class c ON c.classID = pc.classID
-            JOIN department d ON d.DeptID = c.deptID
+            JOIN Department d ON d.DeptID = c.deptID
             WHERE pc.professorID = ? AND c.isActive = '1'
         `, [profID]);
 
@@ -205,8 +205,6 @@ module.exports = {
             // Lock the necessary tables to prevent concurrent writes
             await db_connection.query('LOCK TABLES class WRITE, USERDATA READ, Department READ');
 
-            const isActive = '1'; // Assuming isActive is a CHAR(1) field
-
             const userEmail = req.userEmail;
 
             // Find the current user's role based on email
@@ -233,7 +231,7 @@ module.exports = {
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `, [Dept]);
             console.log(deptData)
@@ -255,32 +253,32 @@ module.exports = {
             }
             console.log(currentUserRole)
 
-            // Remove entries from attendance related to classes in this department
+            // Remove entries from attendance related to classes in this Department
             await db_connection.query(`
             DELETE FROM attendance
             WHERE slotID IN (SELECT slotID FROM Slots WHERE classID = ?)
             OR RollNo IN (SELECT RollNo FROM studentData WHERE classID = ?)
             `, [classData[0].classID, classData[0].classID]);
 
-            // Deactivate students related to classes in this department
+            // Deactivate students related to classes in this Department
             await db_connection.query(`
                 DELETE FROM studentData
                 WHERE classID = ?
             `, [classData[0].classID]);
 
-            // Deactivate slots related to classes in this department
+            // Deactivate Slots related to classes in this Department
             await db_connection.query(`
                 DELETE FROM Slots
                 WHERE classID = ?
             `, [classData[0].classID]);
 
-            // Remove entries from ProfessorClass related to classes in this department
+            // Remove entries from ProfessorClass related to classes in this Department
             await db_connection.query(`
                 DELETE FROM ProfessorClass
                 WHERE classID = ?
             `, [classData[0].classID]);
 
-            // Remove entries from ClassCourse related to classes in this department
+            // Remove entries from ClassCourse related to classes in this Department
             await db_connection.query(`
                 DELETE FROM ClassCourse
                 WHERE classID = ?

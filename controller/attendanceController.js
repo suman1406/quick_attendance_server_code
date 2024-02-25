@@ -21,7 +21,7 @@ module.exports = {
 
         // Lock the necessary tables to prevent concurrent writes
         await db_connection.query(
-          "LOCK TABLES slots READ, class READ, userdata READ, Department READ, classcourse READ, course READ"
+          "LOCK TABLES Slots READ, class READ, USERDATA READ, Department READ, Classcourse READ, course READ"
         );
 
         const userEmail = req.userEmail;
@@ -34,7 +34,7 @@ module.exports = {
         const [userResult] = await db_connection.query(
           `
             SELECT userRole
-            FROM userdata
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `,
           [userEmail]
@@ -52,7 +52,7 @@ module.exports = {
           db_connection.release();
           return res.status(403).json({
             error:
-              "Permission denied. Only professors and admins can create class slots.",
+              "Permission denied. Only professors and admins can create class Slots.",
           });
         }
 
@@ -79,7 +79,7 @@ module.exports = {
         const [deptData] = await db_connection.query(
           `
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `,
           [Dept]
@@ -120,11 +120,11 @@ module.exports = {
         console.log("#############" + courseID);
 
         //Check if class has that course
-        const [classCourseData] = await db_connection.query(
-          "SELECT * FROM classcourse WHERE classID = ? AND courseID = ?",
+        const [ClassCourseData] = await db_connection.query(
+          "SELECT * FROM ClassCourse WHERE classID = ? AND courseID = ?",
           [classID, courseID]
         );
-        if (classCourseData.length == 0) {
+        if (ClassCourseData.length == 0) {
           await db_connection.query("ROLLBACK");
           return res
             .status(501)
@@ -134,10 +134,10 @@ module.exports = {
         let period;
         console.log(periods);
         let slotIDlist = [];
-        // Check if slot is present slots table
+        // Check if slot is present Slots table
         for (period of periods) {
           const [available] = await db_connection.query(
-            "SELECT * FROM slots WHERE classID = ? AND periodNo = ?",
+            "SELECT * FROM Slots WHERE classID = ? AND periodNo = ?",
             [classID, period]
           );
           console.log(available);
@@ -189,7 +189,7 @@ module.exports = {
 
         // Lock the necessary tables to prevent concurrent writes
         await db_connection.query(
-          "LOCK TABLES attendance WRITE, userdata READ, course READ"
+          "LOCK TABLES attendance WRITE, USERDATA READ, course READ"
         );
 
         const userEmail = req.userEmail;
@@ -202,7 +202,7 @@ module.exports = {
         const [userResult] = await db_connection.query(
           `
             SELECT *
-            FROM userdata
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `,
           [userEmail]
@@ -220,7 +220,7 @@ module.exports = {
           db_connection.release();
           return res.status(403).json({
             error:
-              "Permission denied. Only professors and admins can create class slots.",
+              "Permission denied. Only professors and admins can create class Slots.",
           });
         }
 
@@ -231,13 +231,13 @@ module.exports = {
 
         //Check if student is present
         const [stuData] = await db_connection.query(
-          "SELECT * FROM StudentData WHERE RollNo = ?",
+          "SELECT * FROM studentData WHERE RollNo = ?",
           [RollNo]
         );
         if (stuData.length == 0) {
           // Rollback the transaction
           await db_connection.query("ROLLBACK");
-          return res.status(500).json({ error: "Student Doesnt Exist" });
+          return res.status(500).json({ error: "Student Doesn't Exist" });
         }
 
         //get courseID from course
@@ -314,7 +314,7 @@ module.exports = {
 
         // Lock the necessary tables to prevent concurrent writes
         await db_connection.query(
-          "LOCK TABLES attendance READ, userdata READ, course READ"
+          "LOCK TABLES attendance READ, USERDATA READ, course READ"
         );
 
         const userEmail = req.userEmail;
@@ -327,7 +327,7 @@ module.exports = {
         const [userResult] = await db_connection.query(
           `
             SELECT *
-            FROM userdata
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `,
           [userEmail]
@@ -345,7 +345,7 @@ module.exports = {
           db_connection.release();
           return res.status(403).json({
             error:
-              "Permission denied. Only professors and admins can create class slots.",
+              "Permission denied. Only professors and admins can create class Slots.",
           });
         }
 
@@ -466,7 +466,7 @@ module.exports = {
 
         // Lock the necessary tables to prevent concurrent writes
         await db_connection.query(
-          "LOCK TABLES attendance READ, userdata READ, course READ,slots READ, class READ, department READ"
+          "LOCK TABLES attendance READ, USERDATA READ, course READ,Slots READ, class READ, Department READ"
         );
 
         const userEmail = req.userEmail;
@@ -479,7 +479,7 @@ module.exports = {
         const [userResult] = await db_connection.query(
           `
             SELECT *
-            FROM userdata
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `,
           [userEmail]
@@ -497,7 +497,7 @@ module.exports = {
           db_connection.release();
           return res.status(403).json({
             error:
-              "Permission denied. Only professors and admins can create class slots.",
+              "Permission denied. Only professors and admins can create class Slots.",
           });
         }
 
@@ -510,7 +510,7 @@ module.exports = {
         const [deptData] = await db_connection.query(
           `
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `,
           [Dept]
@@ -542,7 +542,7 @@ module.exports = {
         const classID = classData[0].classID;
 
         const [courseAvai] = await db_connection.query(
-          "SELECT courseID FROM Course WHERE courseName = ?",
+          "SELECT courseID FROM course WHERE courseName = ?",
           [courseName]
         );
         console.log(courseAvai);
@@ -556,11 +556,11 @@ module.exports = {
         const [attendanceOfCourse] = await db_connection.query(
           `SELECT a.RollNo, sd.StdName, a.AttDateTime, a.slotID
           FROM attendance a
-          JOIN studentdata sd ON a.RollNo = sd.RollNo
-          WHERE a.slotID IN (SELECT slotID FROM slots WHERE classID = ?) 
+          JOIN studentData sd ON a.RollNo = sd.RollNo
+          WHERE a.slotID IN (SELECT slotID FROM Slots WHERE classID = ?) 
           AND a.courseID = ?
           GROUP BY a.RollNo, sd.StdName, a.AttDateTime, a.slotID
-          ORDER BY a.AttDateTime`,
+          ORDER BY a.RollNo`,
           [classID, courseAvai[0].courseID]
         );
         console.log(attendanceOfCourse);

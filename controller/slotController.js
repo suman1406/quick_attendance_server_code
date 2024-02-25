@@ -38,7 +38,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ, Department READ');
+            await db_connection.query('LOCK TABLES Slots WRITE, class READ, USERDATA READ, Department READ');
 
             const userEmail = req.userEmail;
 
@@ -49,7 +49,7 @@ module.exports = {
             // Fetch userRole based on the email
             const [userResult] = await db_connection.query(`
             SELECT userRole
-            FROM userdata
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
         `, [userEmail]);
 
@@ -63,7 +63,7 @@ module.exports = {
                 // Unlock the tables
                 await db_connection.query('UNLOCK TABLES');
                 db_connection.release();
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class Slots.' });
             }
 
             // Start a transaction
@@ -74,7 +74,7 @@ module.exports = {
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
            SELECT DeptID
-           FROM department
+           FROM Department
            WHERE DeptName = ? AND isActive = '1'
            `, [Dept]);
             console.log(deptData)
@@ -96,13 +96,13 @@ module.exports = {
             }
             const classID = classData[0].classID;
 
-            // Insert slot into slots table
-            const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
+            // Insert slot into Slots table
+            const [available] = await db_connection.query('SELECT * FROM Slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
             if (available.length > 0) {
                 await db_connection.query('ROLLBACK');
                 return res.status(500).json({ error: 'Slot already exist' });
             }
-            const [result] = await db_connection.query('INSERT INTO slots (classID, periodNo) VALUES (?, ?)', [classID, periodNo]);
+            const [result] = await db_connection.query('INSERT INTO Slots (classID, periodNo) VALUES (?, ?)', [classID, periodNo]);
 
             if (result.affectedRows === 1) {
                 // Commit the transaction
@@ -147,7 +147,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES slots WRITE, class READ, userdata READ, Department READ');
+            await db_connection.query('LOCK TABLES Slots WRITE, class READ, USERDATA READ, Department READ');
 
             const userEmail = req.userEmail;
 
@@ -158,7 +158,7 @@ module.exports = {
             // Fetch userRole based on the email
             const [userResult] = await db_connection.query(`
                 SELECT userRole
-                FROM userdata
+                FROM USERDATA
                 WHERE email = ? AND isActive = '1'
                 `, [userEmail]);
 
@@ -172,7 +172,7 @@ module.exports = {
                 // Unlock the tables
                 await db_connection.query('UNLOCK TABLES');
                 db_connection.release();
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class slots.' });
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can create class Slots.' });
             }
 
             // Start a transaction
@@ -183,7 +183,7 @@ module.exports = {
             //Check if Dept is available
             const [deptData] = await db_connection.query(`
                 SELECT DeptID
-                FROM department
+                FROM Department
                 WHERE DeptName = ? AND isActive = '1'
                 `, [Dept]);
             console.log(deptData)
@@ -205,13 +205,13 @@ module.exports = {
             }
             const classID = classData[0].classID;
 
-            // Insert slot into slots table
-            const [available] = await db_connection.query('SELECT * FROM slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
+            // Insert slot into Slots table
+            const [available] = await db_connection.query('SELECT * FROM Slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
             if (available.length == 0) {
                 await db_connection.query('ROLLBACK');
                 return res.status(500).json({ error: 'Slot does not exist' });
             }
-            const [result] = await db_connection.query('DELETE FROM slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
+            const [result] = await db_connection.query('DELETE FROM Slots WHERE classID = ? AND periodNo = ?', [classID, periodNo]);
 
             if (result.affectedRows === 1) {
                 // Commit the transaction

@@ -33,7 +33,7 @@ module.exports = {
                 return res.status(402).json({ error: 'Current user not found' });
             }
 
-            const [StudentPresent] = await db_connection.query('SELECT RollNo FROM StudentData WHERE RollNo=?', [RollNo])
+            const [StudentPresent] = await db_connection.query('SELECT RollNo FROM studentData WHERE RollNo=?', [RollNo])
             if (StudentPresent.length != 0) {
                 await db_connection.query('ROLLBACK');
                 return res.status(403).json({ error: 'Student already present' });
@@ -365,7 +365,7 @@ module.exports = {
 
             dbConnection = await db.promise().getConnection();
 
-            await dbConnection.query('LOCK TABLES studentData s READ, class c READ, department d READ');
+            await dbConnection.query('LOCK TABLES studentData s READ, class c READ, Department d READ');
             const [DeptResult] = await dbConnection.query('SELECT * FROM Department d WHERE d.DeptName = ?', [dept]);
             if (DeptResult.length === 0) {
                 return res.status(400).send({ "message": "Department not found!" });
@@ -430,7 +430,7 @@ module.exports = {
                 console.error('One of the parameters is undefined');
                 return res.status(400).json({ error: 'All parameters are required' });
             }
-            await dbConnection.query('LOCK TABLES studentData s WRITE, class c READ, department d READ');
+            await dbConnection.query('LOCK TABLES studentData s WRITE, class c READ, Department d READ');
 
 
             await dbConnection.query('START TRANSACTION');
@@ -498,7 +498,7 @@ module.exports = {
         }
     }],
 
-    fetchStudentData: [webTokenValidator, async (req, res) => {
+    fetchstudentData: [webTokenValidator, async (req, res) => {
         let db_connection;
 
         try {

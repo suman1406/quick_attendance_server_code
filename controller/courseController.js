@@ -5,7 +5,7 @@ const webTokenValidator = require('../middleware/webTokenValidator');
 const fs = require('fs');
 
 module.exports = {
-    
+
     createCourse: [webTokenValidator, async (req, res) => {
         /*
             JSON
@@ -20,7 +20,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
 
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES course WRITE, userdata READ');
+            await db_connection.query('LOCK TABLES course WRITE, USERDATA READ');
 
             const userEmail = req.userEmail;
             console.log(userEmail)
@@ -75,7 +75,7 @@ module.exports = {
         } catch (error) {
             console.error(error);
             if (error.code === 'ER_DUP_ENTRY') {
-                // Handle the primary key violation error for department names
+                // Handle the primary key violation error for Department names
                 return res.status(400).json({ error: 'Course name already exists' });
             }
             // Rollback the transaction in case of an error
@@ -108,7 +108,7 @@ module.exports = {
             const userEmail = req.userEmail;
             const courseName = req.body.courseName;
 
-            await db_connection.query('LOCK TABLES course WRITE, userdata READ, classCourse WRITE, ProfCourse WRITE');
+            await db_connection.query('LOCK TABLES course WRITE, USERDATA READ, ClassCourse WRITE, ProfCourse WRITE');
 
             const [userData] = await db_connection.query(`
                 SELECT userRole
@@ -123,13 +123,13 @@ module.exports = {
             const userRole = userData[0].userRole;
 
             if (userRole !== '0' && userRole !== '1') {
-                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete departments.' });
+                return res.status(403).json({ error: 'Permission denied. Only professors and admins can delete Departments.' });
             }
 
             const [courseData] = await db_connection.query(`
                 SELECT courseID
-                FROM Course
-                WHERE CourseName = ? AND isActive = '1'
+                FROM course
+                WHERE courseName = ? AND isActive = '1'
             `, [courseName]);
 
             if (courseData.length === 0) {
@@ -141,7 +141,7 @@ module.exports = {
 
             // Remove entries from ClassCourse related to this course
             await db_connection.query(`
-                DELETE FROM classCourse
+                DELETE FROM ClassCourse
                 WHERE courseID = ?
             `, [courseID]);
 
@@ -154,7 +154,7 @@ module.exports = {
             // Commit transaction
             await db_connection.query('COMMIT');
 
-            // Deactivate the department
+            // Deactivate the Department
             await db_connection.query('UPDATE Course SET isActive = ? WHERE courseID = ?', ['0', courseID]);
             res.json({ message: 'Course and associated data deactivated successfully' });
         } catch (error) {
@@ -225,10 +225,10 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can view courses.' });
             }
 
-            await db_connection.query('LOCK TABLES USERDATA READ, course READ, ProfCourse READ');
+            await db_connection.query('LOCK TABLES USERDATA READ, course READ, Profcourse READ');
 
             // Fetch courses associated with the user
-            const [rows] = await db_connection.query(`SELECT courseName FROM Course WHERE CourseID in (SELECT CourseID FROM ProfCourse WHERE ProfessorID in (SELECT ProfID FROM userdata WHERE email = ? AND isActive = '1'))`, [userEmail]);
+            const [rows] = await db_connection.query(`SELECT courseName FROM course WHERE courseID in (SELECT courseID FROM ProfCourse WHERE professorID in (SELECT profID FROM USERDATA WHERE email = ? AND isActive = '1'))`, [userEmail]);
 
             if (rows.length === 0) {
                 return res.status(401).json({ message: 'No Courses found' });

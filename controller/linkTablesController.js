@@ -22,7 +22,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
             console.log(profEmail, courses)
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
+            await db_connection.query('LOCK TABLES ProfCourse WRITE, USERDATA READ, course READ');
 
             const userEmail = req.userEmail;
             console.log(userEmail)
@@ -43,7 +43,7 @@ module.exports = {
 
             const query = `
                 SELECT courseID
-                FROM Course
+                FROM course
                 WHERE courseName IN (${placeholders}) AND isActive = '1'
             `;
             const [courseData] = await db_connection.query(query, courses);
@@ -56,7 +56,7 @@ module.exports = {
             // Fetch Prof email passed as param and check if that email is present or is active
             const [profData] = await db_connection.query(`
             SELECT ProfID
-            FROM UserData
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `, [profEmail]);
 
@@ -75,9 +75,9 @@ module.exports = {
 
             let addedCourses = 0;
             for (i of courseData) {
-                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE professorID = ? AND courseID = ?', [profData[0].ProfID, i.courseID]);
                 if (available.length === 0) {
-                    const [result] = await db_connection.query('INSERT INTO ProfCourse (professorID, CourseID) VALUES (?, ?)', [profData[0].ProfID, i.courseID]);
+                    const [result] = await db_connection.query('INSERT INTO ProfCourse (professorID, courseID) VALUES (?, ?)', [profData[0].ProfID, i.courseID]);
                     if (result.affectedRows === 1) {
                         addedCourses += 1;
                     } else {
@@ -117,7 +117,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
             console.log(profEmail, courses)
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES profcourse WRITE, userdata READ, Course READ');
+            await db_connection.query('LOCK TABLES ProfCourse WRITE, USERDATA READ, course READ');
 
             const userEmail = req.userEmail;
             console.log(userEmail)
@@ -136,7 +136,7 @@ module.exports = {
             const placeholders = courses.map(() => '?').join(', '); // Generate placeholders like (?, ?)
             const query = `
                 SELECT courseID
-                FROM Course
+                FROM course
                 WHERE courseName IN (${placeholders}) AND isActive = '1'
             `;
             const [courseData] = await db_connection.query(query, courses);
@@ -146,8 +146,8 @@ module.exports = {
                 return res.status(404).json({ error: 'Course not found or inactive' });
             }
             const [profData] = await db_connection.query(`
-            SELECT ProfID
-            FROM UserData
+            SELECT profID
+            FROM USERDATA
             WHERE email = ? AND isActive = '1'
             `, [profEmail]);
 
@@ -166,9 +166,9 @@ module.exports = {
 
             let deletedCourses = 0;
             for (i of courseData) {
-                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE ProfessorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                const [available] = await db_connection.query('SELECT * FROM ProfCourse WHERE professorID = ? AND courseID = ?', [profData[0].ProfID, i.courseID]);
                 if (available.length === 1) {
-                    const [result] = await db_connection.query('DELETE FROM ProfCourse WHERE professorID = ? AND CourseID = ?', [profData[0].ProfID, i.courseID]);
+                    const [result] = await db_connection.query('DELETE FROM ProfCourse WHERE professorID = ? AND courseID = ?', [profData[0].ProfID, i.courseID]);
                     if (result.affectedRows === 1) {
                         deletedCourses += 1;
                     } else {
@@ -216,7 +216,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
             console.log(profEmails, courses)
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES classcourse WRITE, professorclass WRITE, userdata READ, Course READ, Department READ, class READ');
+            await db_connection.query('LOCK TABLES ClassCourse WRITE, ProfessorClass WRITE, USERDATA READ, course READ, Department READ, class READ');
 
             const userEmail = req.userEmail;
             console.log(userEmail)
@@ -237,7 +237,7 @@ module.exports = {
                 const placeholdersc = courses.map(() => '?').join(', ');
                 let query = `
                     SELECT courseID
-                    FROM Course
+                    FROM course
                     WHERE courseName IN (${placeholdersc}) AND isActive = '1'
                 `;
                 [courseData] = await db_connection.query(query, courses);
@@ -253,7 +253,7 @@ module.exports = {
                 const placeholders = profEmails.map(() => '?').join(', ');
                 query = `
                     SELECT profID
-                    FROM userdata
+                    FROM USERDATA
                     WHERE email IN (${placeholders}) AND isActive = '1'
                 `;
                 [profData] = await db_connection.query(query, profEmails);
@@ -267,7 +267,7 @@ module.exports = {
             // Fetch Department passed as param and check if that dept is present or is active
             const [deptData] = await db_connection.query(`
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `, [Dept]);
             console.log(deptData)
@@ -297,9 +297,9 @@ module.exports = {
             if (courses && Array.isArray(courses) && courses.length > 0) {
                 await db_connection.query('START TRANSACTION');
                 for (i of courseData) {
-                    const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE ClassID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
+                    const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE classID = ? AND courseID = ?', [classData[0].classID, i.courseID]);
                     if (available.length === 0) {
-                        const [result] = await db_connection.query('INSERT INTO ClassCourse (classID, CourseID) VALUES (?, ?)', [classData[0].classID, i.courseID]);
+                        const [result] = await db_connection.query('INSERT INTO ClassCourse (classID, courseID) VALUES (?, ?)', [classData[0].classID, i.courseID]);
                         if (result.affectedRows === 1) {
                             addedCourses += 1;
                         } else {
@@ -320,9 +320,9 @@ module.exports = {
             if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 await db_connection.query('START TRANSACTION');
                 for (i of profData) {
-                    const [available] = await db_connection.query('SELECT * FROM professorClass WHERE ClassID = ? AND professorID = ?', [classData[0].classID, i.profID]);
+                    const [available] = await db_connection.query('SELECT * FROM ProfessorClass WHERE ClassID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                     if (available.length === 0) {
-                        const [result] = await db_connection.query('INSERT INTO professorClass (classID, professorID) VALUES (?, ?)', [classData[0].classID, i.profID]);
+                        const [result] = await db_connection.query('INSERT INTO ProfessorClass (classID, professorID) VALUES (?, ?)', [classData[0].classID, i.profID]);
                         if (result.affectedRows === 1) {
                             addedProfs += 1;
                         } else {
@@ -375,7 +375,7 @@ module.exports = {
             db_connection = await db.promise().getConnection();
             console.log(profEmails, courses)
             // Lock the necessary tables to prevent concurrent writes
-            await db_connection.query('LOCK TABLES classcourse WRITE, professorclass WRITE, userdata READ, Course READ, Department READ, class READ');
+            await db_connection.query('LOCK TABLES ClassCourse WRITE, ProfessorClass WRITE, USERDATA READ, course READ, Department READ, class READ');
 
             const userEmail = req.userEmail;
             console.log(userEmail)
@@ -412,7 +412,7 @@ module.exports = {
                 const placeholders = profEmails.map(() => '?').join(', ');
                 query = `
                     SELECT profID
-                    FROM userdata
+                    FROM USERDATA
                     WHERE email IN (${placeholders}) AND isActive = '1'
                 `;
                 [profData] = await db_connection.query(query, profEmails);
@@ -426,7 +426,7 @@ module.exports = {
             // Fetch Department passed as param and check if that dept is present or is active
             const [deptData] = await db_connection.query(`
             SELECT DeptID
-            FROM department
+            FROM Department
             WHERE DeptName = ? AND isActive = '1'
             `, [Dept]);
             console.log(deptData)
@@ -456,9 +456,9 @@ module.exports = {
             if (courses && Array.isArray(courses) && courses.length > 0) {
                 await db_connection.query('START TRANSACTION');
                 for (i of courseData) {
-                    const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE ClassID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
+                    const [available] = await db_connection.query('SELECT * FROM ClassCourse WHERE classID = ? AND courseID = ?', [classData[0].classID, i.courseID]);
                     if (available.length === 0) {
-                        const [result] = await db_connection.query('DELETE FROM ClassCourse WHERE classID = ? AND CourseID = ?', [classData[0].classID, i.courseID]);
+                        const [result] = await db_connection.query('DELETE FROM ClassCourse WHERE classID = ? AND courseID = ?', [classData[0].classID, i.courseID]);
                         if (result.affectedRows === 1) {
                             deletedCourses += 1;
                         } else {
@@ -479,9 +479,9 @@ module.exports = {
             if (profEmails && Array.isArray(profEmails) && profEmails.length > 0) {
                 await db_connection.query('START TRANSACTION');
                 for (i of profData) {
-                    const [available] = await db_connection.query('SELECT * FROM professorClass WHERE ClassID = ? AND professorID = ?', [classData[0].classID, i.profID]);
+                    const [available] = await db_connection.query('SELECT * FROM ProfessorClass WHERE classID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                     if (available.length === 0) {
-                        const [result] = await db_connection.query('DELETE FROM professorClass WHERE classID = ? AND professorID = ?', [classData[0].classID, i.profID]);
+                        const [result] = await db_connection.query('DELETE FROM ProfessorClass WHERE classID = ? AND professorID = ?', [classData[0].classID, i.profID]);
                         if (result.affectedRows === 1) {
                             deletedProfs += 1;
                         } else {
@@ -513,6 +513,6 @@ module.exports = {
             await db_connection.query('UNLOCK TABLES');
             db_connection.release();
         }
-    }],  
+    }],
 
 };

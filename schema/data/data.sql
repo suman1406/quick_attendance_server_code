@@ -92,3 +92,7 @@ CREATE TABLE IF NOT EXISTS USERREGISTER (
     createdAt TIMESTAMP NOT NULL,
     PRIMARY KEY (id)
 );
+
+INSERT INTO USERDATA (email, password, profName, userRole) VALUES
+('thanuskumaara@gmail.com','2a27ad2744e860e4dcf47b191a2afb795abc2bc800a8833f73d90f50ffa69383','Thanus Kumaar','1'),
+('psuman1406@gmail.com', '735701f285cb9253fcff9649a0f7a09f27e5b5967030ded8baba4c5731683636', 'P Suman', '1');

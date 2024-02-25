@@ -4,7 +4,8 @@
   "description": "Server for an app that records attendance",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js"
+    "test": "node index.js",
+    "deploy": "pm2 start index.js -i max --name attendance_backend"
   },
   "repository": {
     "type": "git",

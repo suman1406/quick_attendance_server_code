@@ -5,7 +5,7 @@ const establishConnection = () => {
 
     const db = mysql.createConnection({
         host: 'localhost',
-        user: 'root',
+        user: process.env.SQLUSER,
         password: process.env.SQLPASSWORD,
         database: 'quick_attendance',
         multipleStatements: true

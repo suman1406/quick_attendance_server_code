@@ -67,13 +67,13 @@ if (cluster.isPrimary) {
     }
 
     // Start Ngrok
-    (async () => {
-        const url = await ngrok.connect({
-            addr: PORT,
-            authtoken: process.env.NGROK_AUTH_TOKEN,
-        });
-        console.log(`[MESSAGE]: Ngrok tunnel is live at ${url}`);
-    })();
+    // (async () => {
+    //     const url = await ngrok.connect({
+    //         addr: PORT,
+    //         authtoken: process.env.NGROK_AUTH_TOKEN,
+    //     });
+    //     console.log(`[MESSAGE]: Ngrok tunnel is live at ${url}`);
+    // })();
 
 } else {
     server.listen(PORT, (err) => {

@@ -311,9 +311,9 @@ module.exports = {
             }
 
             //Check if the delete operation is performed on the same user
-            if(req.userEmail == req.body.Email){
+            if (req.userEmail == req.body.Email) {
                 await db_connection.query(`UNLOCK TABLES`);
-                return res.status(406).send({ "message": "Admin can't delete himself / herself" });   
+                return res.status(406).send({ "message": "Admin can't delete himself / herself" });
             }
 
             // Check if admin exists
@@ -619,7 +619,7 @@ module.exports = {
             }
             else {
                 await db_connection.query('START TRANSACTION')
-                const [result] = await db_connection.query('UPDATE userdata SET isActive = ? WHERE email = ?', [1, email]);
+                const [result] = await db_connection.query('UPDATE USERDATA SET isActive = ? WHERE email = ?', [1, email]);
                 if (result.affectedRows === 1) {
                     // Commit the transaction
                     await db_connection.query('COMMIT');
@@ -644,7 +644,7 @@ module.exports = {
         }
     }],
 
-    fetchUserData: [webTokenValidator, async (req, res) => {
+    fetchUSERDATA: [webTokenValidator, async (req, res) => {
         /*
         query
         {
@@ -685,7 +685,7 @@ module.exports = {
         } catch (error) {
             console.error(error);
             const time = new Date();
-            await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - fetchUserData - ${error}\n`);
+            await fs.promises.appendFile('logs/errorLogs.txt', `${time.toISOString()} - fetchUSERDATA - ${error}\n`);
             res.status(500).json({ error: 'Failed to fetch user data' });
         } finally {
             // Unlock the tables even if an error occurs

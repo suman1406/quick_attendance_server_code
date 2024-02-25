@@ -8,7 +8,7 @@ const linkTablesController = require('../controller/linkTablesController');
 const slotController = require('../controller/slotController');
 const classController = require('../controller/classController');
 const authController = require('../controller/authController');
-const departmentController = require('../controller/departmentController');
+const DepartmentController = require('../controller/departmentController');
 
 // Test route
 router.get('/test', userController.test);
@@ -31,7 +31,7 @@ router.get('/all-profs', userController.getAllProfEmails);
 // Common route
 router.put('/edit-user', userController.editUser); //done
 router.get('/users/all', userController.getAllUsers); //done
-router.get('/fetchUser', userController.fetchUserData); //done
+router.get('/fetchUser', userController.fetchUSERDATA); //done
 
 // Password reset routes
 router.post('/forgot-password', authController.forgotPassword); //done
@@ -44,7 +44,7 @@ router.put('/edit-student', studentController.editStudent); //done
 router.delete('/delete-student', studentController.deleteStudent); //done
 router.post('/activate-student', studentController.activateStudent); //done
 router.get('/all-students', studentController.allStudents); //done
-router.get('/fetchStudent', studentController.fetchStudentData);
+router.get('/fetchStudent', studentController.fetchstudentData);
 router.post('/add-students', studentController.addStudents); //done
 
 // Class routes
@@ -66,9 +66,9 @@ router.get('/all-courses', courseController.allCourses);
 router.get('/my-courses', courseController.myCourses);
 
 //Department routes
-router.post('/add-dept', departmentController.createDept);
-router.delete('/delete-dept', departmentController.deleteDept);
-router.get('/all-dept', departmentController.allDepts)
+router.post('/add-dept', DepartmentController.createDept);
+router.delete('/delete-dept', DepartmentController.deleteDept);
+router.get('/all-dept', DepartmentController.allDepts)
 
 //many to many operation routes
 router.post('/add-prof-course', linkTablesController.addProfCourse);
