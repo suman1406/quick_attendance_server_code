@@ -554,13 +554,14 @@ module.exports = {
         }
 
         const [attendanceOfCourse] = await db_connection.query(
-          `SELECT a.RollNo, sd.StdName, a.AttDateTime, a.slotID
-          FROM attendance a
-          JOIN studentData sd ON a.RollNo = sd.RollNo
-          WHERE a.slotID IN (SELECT slotID FROM Slots WHERE classID = ?) 
+          `SELECT a.RollNo, sd.StdName, a.AttDateTime, s.periodNo
+          FROM (( attendance a
+          JOIN studentdata sd ON a.RollNo = sd.RollNo )
+          JOIN Slots s ON a.slotID = s.slotID )
+          WHERE a.slotID IN (SELECT slotID FROM slots WHERE classID = ?)
           AND a.courseID = ?
-          GROUP BY a.RollNo, sd.StdName, a.AttDateTime, a.slotID
-          ORDER BY a.RollNo`,
+          GROUP BY a.RollNo, sd.StdName, a.AttDateTime, s.periodNo
+          ORDER BY a.RollNo;`,
           [classID, courseAvai[0].courseID]
         );
         console.log(attendanceOfCourse);
