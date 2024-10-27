@@ -155,7 +155,7 @@ module.exports = {
             await db_connection.query('COMMIT');
 
             // Deactivate the Department
-            await db_connection.query('UPDATE Course SET isActive = ? WHERE courseID = ?', ['0', courseID]);
+            await db_connection.query('UPDATE course SET isActive = ? WHERE courseID = ?', ['0', courseID]);
             res.json({ message: 'Course and associated data deactivated successfully' });
         } catch (error) {
             console.error(error);
@@ -225,7 +225,7 @@ module.exports = {
                 return res.status(403).json({ error: 'Permission denied. Only professors and admins can view courses.' });
             }
 
-            await db_connection.query('LOCK TABLES USERDATA READ, course READ, Profcourse READ');
+            await db_connection.query('LOCK TABLES USERDATA READ, course READ, ProfCourse READ');
 
             // Fetch courses associated with the user
             const [rows] = await db_connection.query(`SELECT courseName FROM course WHERE courseID in (SELECT courseID FROM ProfCourse WHERE professorID in (SELECT profID FROM USERDATA WHERE email = ? AND isActive = '1'))`, [userEmail]);

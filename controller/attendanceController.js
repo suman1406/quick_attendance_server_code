@@ -21,7 +21,7 @@ module.exports = {
 
         // Lock the necessary tables to prevent concurrent writes
         await db_connection.query(
-          "LOCK TABLES Slots READ, class READ, USERDATA READ, Department READ, Classcourse READ, course READ"
+          "LOCK TABLES Slots READ, class READ, USERDATA READ, Department READ, ClassCourse READ, course READ"
         );
 
         const userEmail = req.userEmail;
@@ -61,6 +61,8 @@ module.exports = {
 
         const { batchYear, Dept, Section, Semester, course, periodNo } =
           req.body;
+          console.log("=========================================");
+        console.log(req.body);
         console.log(batchYear, Dept, Section, Semester, course, periodNo);
         if (
           batchYear == undefined ||
@@ -131,7 +133,7 @@ module.exports = {
             .json({ error: "This class doesn't offer this course" });
         }
 
-        let period;
+        // let period;
         console.log(periods);
         let slotIDlist = [];
         // Check if slot is present Slots table
@@ -170,9 +172,7 @@ module.exports = {
   ],
 
   addAttendance: [
-    webTokenValidator,
-    async (req, res) => {
-      /*
+    /*
             JSON
             {
                 "RollNo": "<RollNo>",
@@ -181,120 +181,126 @@ module.exports = {
                 "courseName": "<courseName>"
             }
         */
+    webTokenValidator,
+    async (req, res) => {
+        let db_connection;
 
-      let db_connection;
+        try {
+            db_connection = await db.promise().getConnection();
 
-      try {
-        db_connection = await db.promise().getConnection();
+            // Lock the necessary tables to prevent concurrent writes
+            await db_connection.query(
+                "LOCK TABLES attendance WRITE, USERDATA READ, course READ, Slots READ"
+            );
 
-        // Lock the necessary tables to prevent concurrent writes
-        await db_connection.query(
-          "LOCK TABLES attendance WRITE, USERDATA READ, course READ"
-        );
+            const userEmail = req.userEmail;
 
-        const userEmail = req.userEmail;
+            if (!userEmail || !validator.isEmail(userEmail)) {
+                return res.status(400).json({ error: "Invalid user email" });
+            }
 
-        if (!userEmail || !validator.isEmail(userEmail)) {
-          return res.status(400).json({ error: "Invalid user email" });
-        }
+            // Fetch userRole based on the email
+            const [userResult] = await db_connection.query(
+                `SELECT * FROM USERDATA WHERE email = ? AND isActive = '1'`,
+                [userEmail]
+            );
 
-        // Fetch userRole based on the email
-        const [userResult] = await db_connection.query(
-          `
-            SELECT *
-            FROM USERDATA
-            WHERE email = ? AND isActive = '1'
-            `,
-          [userEmail]
-        );
+            if (userResult.length === 0) {
+                return res.status(404).json({ error: "User not found or inactive" });
+            }
 
-        if (userResult.length === 0) {
-          return res.status(404).json({ error: "User not found or inactive" });
-        }
+            const cUserRole = userResult[0].userRole;
 
-        const cUserRole = userResult[0].userRole;
+            if (cUserRole != 0 && cUserRole != 1) {
+                // Unlock the tables
+                await db_connection.query("UNLOCK TABLES");
+                db_connection.release();
+                return res.status(403).json({
+                    error: "Permission denied. Only professors and admins can create class Slots.",
+                });
+            }
 
-        if (cUserRole != 0 && cUserRole != 1) {
-          // Unlock the tables
-          await db_connection.query("UNLOCK TABLES");
-          db_connection.release();
-          return res.status(403).json({
-            error:
-              "Permission denied. Only professors and admins can create class Slots.",
-          });
-        }
+            // Start a transaction
+            await db_connection.query("START TRANSACTION");
 
-        // Start a transaction
-        await db_connection.query("START TRANSACTION");
+            const { RollNo, date, SlotIDs, courseName } = req.body;
 
-        const { RollNo, date, SlotIDs, courseName } = req.body;
+            // Check if student exists
+            const [stuData] = await db_connection.query(
+                "SELECT * FROM studentData WHERE RollNo = ?",
+                [RollNo]
+            );
+            if (stuData.length === 0) {
+                await db_connection.query("ROLLBACK");
+                return res.status(500).json({ error: "Student doesn't exist" });
+            }
 
-        //Check if student is present
-        const [stuData] = await db_connection.query(
-          "SELECT * FROM studentData WHERE RollNo = ?",
-          [RollNo]
-        );
-        if (stuData.length == 0) {
-          // Rollback the transaction
-          await db_connection.query("ROLLBACK");
-          return res.status(500).json({ error: "Student Doesn't Exist" });
-        }
+            // Get courseID from course
+            const [courseData] = await db_connection.query(
+                "SELECT courseID FROM course WHERE courseName = ?",
+                [courseName]
+            );
+            if (courseData.length === 0) {
+                await db_connection.query("ROLLBACK");
+                return res.status(400).json({ error: "Course not found" });
+            }
+            const courseID = courseData[0].courseID;
 
-        //get courseID from course
-        const [courseData] = await db_connection.query(
-          "SELECT courseID from course WHERE courseName = ?",
-          [courseName]
-        );
-        console.log(courseData);
-        const courseID = courseData[0].courseID;
-        console.log(SlotIDs)
-        let slotIDs = SlotIDs.substring(1, SlotIDs.length - 1).split(",");
-        let addedAttd = 0;
-        let slot;
-        for (slot of slotIDs) {
-          console.log(slot);
-          const [result] = await db_connection.query(
-            "INSERT INTO attendance (RollNo, attdStatus, AttDateTime, slotID, courseID) VALUES (?, ?, ?,?, ?)",
-            [RollNo, 1, date, slot, courseID]
-          );
-          if (result.affectedRows === 1) {
-            addedAttd += 1;
-            // Commit the transaction
+            // Check if SlotIDs is an array and contains valid slot IDs
+            if (!Array.isArray(SlotIDs) || SlotIDs.length === 0) {
+                await db_connection.query("ROLLBACK");
+                return res.status(400).json({ error: "Invalid SlotIDs provided" });
+            }
+
+            let addedAttd = 0;
+            for (const slot of SlotIDs) {
+                // Check if the slotID exists in the Slots table
+                const [slotData] = await db_connection.query(
+                    "SELECT * FROM Slots WHERE slotID = ?",
+                    [slot]
+                );
+                if (slotData.length === 0) {
+                    await db_connection.query("ROLLBACK");
+                    return res.status(400).json({ error: `SlotID ${slot} does not exist` });
+                }
+
+                // Insert attendance record
+                const [result] = await db_connection.query(
+                    "INSERT INTO attendance (RollNo, attdStatus, AttDateTime, slotID, courseID) VALUES (?, ?, ?, ?, ?)",
+                    [RollNo, 1, date, slot, courseID]
+                );
+                if (result.affectedRows === 1) {
+                    addedAttd += 1;
+                } else {
+                    await db_connection.query("ROLLBACK");
+                    return res.status(500).json({ error: "Failed to record attendance" });
+                }
+            }
+
+            // If all attendance records are added successfully
             await db_connection.query("COMMIT");
-          } else {
-            // Rollback the transaction
-            await db_connection.query("ROLLBACK");
-            return res
-              .status(500)
-              .json({ error: "Failed to record attendance" });
-          }
+            return res.status(201).json({ message: "Attendance recorded successfully", addedAttd });
+        } catch (error) {
+            console.error(error);
+            // Rollback the transaction in case of an error
+            if (db_connection) {
+                await db_connection.query("ROLLBACK");
+            }
+            time = new Date();
+            fs.appendFileSync(
+                "logs/errorLogs.txt",
+                `${time.toISOString()} - addAttendance - ${error}\n`
+            );
+            res.status(500).json({ error: "Failed to record attendance" });
+        } finally {
+            // Unlock the tables
+            if (db_connection) {
+                await db_connection.query("UNLOCK TABLES");
+                db_connection.release();
+            }
         }
-        if (addedAttd == SlotIDs.length) {
-          // Commit the transaction
-          await db_connection.query("COMMIT");
-        }
-        return res
-          .status(201)
-          .json({ message: "Attendance recorded successfully" });
-      } catch (error) {
-        console.error(error);
-        // Rollback the transaction in case of an error
-        if (db_connection) {
-          await db_connection.query("ROLLBACK");
-        }
-        time = new Date();
-        fs.appendFileSync(
-          "logs/errorLogs.txt",
-          `${time.toISOString()} - addAttendance - ${error}\n`
-        );
-        res.status(500).json({ error: "Failed to record attendance" });
-      } finally {
-        // Unlock the tables
-        await db_connection.query("UNLOCK TABLES");
-        db_connection.release();
-      }
     },
-  ],
+],
 
   getAttendanceForSlot: [
     webTokenValidator,
@@ -556,9 +562,9 @@ module.exports = {
         const [attendanceOfCourse] = await db_connection.query(
           `SELECT a.RollNo, sd.StdName, a.AttDateTime, s.periodNo
           FROM (( attendance a
-          JOIN studentdata sd ON a.RollNo = sd.RollNo )
+          JOIN studentData sd ON a.RollNo = sd.RollNo )
           JOIN Slots s ON a.slotID = s.slotID )
-          WHERE a.slotID IN (SELECT slotID FROM slots WHERE classID = ?)
+          WHERE a.slotID IN (SELECT slotID FROM Slots WHERE classID = ?)
           AND a.courseID = ?
           GROUP BY a.RollNo, sd.StdName, a.AttDateTime, s.periodNo
           ORDER BY a.RollNo;`,

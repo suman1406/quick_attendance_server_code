@@ -65,7 +65,7 @@ module.exports = {
                     return res.status(401).send({ "message": "Access Restricted!" });
                 }
 
-                await db_connection.query('LOCK TABLES USERDATA u READ, COURSE c READ');
+                await db_connection.query('LOCK TABLES USERDATA u READ, course c READ');
 
                 console.log(req.body.reqRole)
 
